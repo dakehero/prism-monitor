@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "NativeGuard.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "NativeGuard.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
