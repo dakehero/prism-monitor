@@ -20,6 +20,7 @@ env:
   DOTNET_VERSION: "10.0.x"
   SOLUTION: NativeGuard.slnx
   APP_PROJECT: src/NativeGuard.App/NativeGuard.App.csproj
+  TEST_PROJECT: tests/NativeGuard.Core.Tests/NativeGuard.Core.Tests.csproj
   PACKAGE_MANIFEST: src/NativeGuard.App/Package.appxmanifest
   PACKAGE_SUBJECT: CN=dakehero
 
@@ -41,10 +42,10 @@ jobs:
         run: dotnet restore $env:SOLUTION
 
       - name: Test
-        run: dotnet test $env:SOLUTION --configuration Release --no-restore
+        run: dotnet test $env:TEST_PROJECT --configuration Release --no-restore
 
-      - name: Build
-        run: dotnet build $env:SOLUTION --configuration Release --no-restore
+      - name: Build app for Windows ARM64
+        run: dotnet build $env:APP_PROJECT --configuration Release --runtime win-arm64 --self-contained true
 
   package-msix:
     name: Package MSIX
