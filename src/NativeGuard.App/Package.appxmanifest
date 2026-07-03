@@ -5,19 +5,18 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10"
-  IgnorableNamespaces="uap rescap systemai">
+  IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="59A18C84-873D-4D12-A1ED-F1711414BA73"
-    Publisher="CN=AppPublisher"
-    Version="1.0.0.0" />
+    Name="dakehero.NativeGuard"
+    Publisher="CN=dakehero"
+    Version="0.2.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="59A18C84-873D-4D12-A1ED-F1711414BA73" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>NativeGuard.App</DisplayName>
-    <PublisherDisplayName>AppPublisher</PublisherDisplayName>
+    <DisplayName>Native Guard</DisplayName>
+    <PublisherDisplayName>dakehero</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -35,8 +34,8 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="NativeGuard.App"
-        Description="NativeGuard.App"
+        DisplayName="Native Guard"
+        Description="Windows ARM64 tray app for spotting non-native processes"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -48,6 +47,5 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <systemai:Capability Name="systemAIModels"/>
   </Capabilities>
 </Package>

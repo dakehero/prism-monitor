@@ -29,3 +29,7 @@ Run `NativeGuard.App.exe` as administrator. The app starts in the notification a
 
 - Left-click the tray icon to show the process list.
 - Right-click the tray icon to exit.
+
+## MSIX package
+
+Release builds also publish a signed MSIX package for Windows ARM64. The current development package uses a self-signed certificate, so use the generated `Install.ps1` script from the release zip to trust the certificate and install the package.
