@@ -1,115 +1,179 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-# This workflow will build, test, sign and package a WPF or Windows Forms desktop application
-# built on .NET Core.
-# To learn how to migrate your existing application to .NET Core,
-# refer to https://docs.microsoft.com/en-us/dotnet/desktop-wpf/migration/convert-project-from-net-framework
-#
-# To configure this workflow:
-#
-# 1. Configure environment variables
-# GitHub sets default environment variables for every workflow run.
-# Replace the variables relative to your project in the "env" section below.
-#
-# 2. Signing
-# Generate a signing certificate in the Windows Application
-# Packaging Project or add an existing signing certificate to the project.
-# Next, use PowerShell to encode the .pfx file using Base64 encoding
-# by running the following Powershell script to generate the output string:
-#
-# $pfx_cert = Get-Content '.\SigningCertificate.pfx' -Encoding Byte
-# [System.Convert]::ToBase64String($pfx_cert) | Out-File 'SigningCertificate_Encoded.txt'
-#
-# Open the output file, SigningCertificate_Encoded.txt, and copy the
-# string inside. Then, add the string to the repo as a GitHub secret
-# and name it "Base64_Encoded_Pfx."
-# For more information on how to configure your signing certificate for
-# this workflow, refer to https://github.com/microsoft/github-actions-for-desktop-apps#signing
-#
-# Finally, add the signing certificate password to the repo as a secret and name it "Pfx_Key".
-# See "Build the Windows Application Packaging project" below to see how the secret is used.
-#
-# For more information on GitHub Actions, refer to https://github.com/features/actions
-# For a complete CI/CD sample to get started with GitHub Action workflows for Desktop Applications,
-# refer to https://github.com/microsoft/github-actions-for-desktop-apps
-
-name: .NET Core Desktop
+name: Native Guard CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
+    tags: ["v*"]
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version, for example 0.2.1"
+        required: false
+        default: "0.2.0"
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: "10.0.x"
+  SOLUTION: NativeGuard.slnx
+  APP_PROJECT: src/NativeGuard.App/NativeGuard.App.csproj
+  PACKAGE_MANIFEST: src/NativeGuard.App/Package.appxmanifest
+  PACKAGE_SUBJECT: CN=dakehero
 
 jobs:
-
-  build:
-
-    strategy:
-      matrix:
-        configuration: [Debug, Release]
-
-    runs-on: windows-latest  # For a list of available runner types, refer to
-                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
-
-    env:
-      Solution_Name: your-solution-name                         # Replace with your solution name, i.e. MyWpfApp.sln.
-      Test_Project_Path: your-test-project-path                 # Replace with the path to your test project, i.e. MyWpfApp.Tests\MyWpfApp.Tests.csproj.
-      Wap_Project_Directory: your-wap-project-directory-name    # Replace with the Wap project directory relative to the solution, i.e. MyWpfApp.Package.
-      Wap_Project_Path: your-wap-project-path                   # Replace with the path to your Wap project, i.e. MyWpf.App.Package\MyWpfApp.Package.wapproj.
+  test:
+    name: Test and build
+    runs-on: windows-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # Install the .NET Core workload
-    - name: Install .NET Core
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2
+      - name: Restore
+        run: dotnet restore $env:SOLUTION
 
-    # Execute all unit tests in the solution
-    - name: Execute unit tests
-      run: dotnet test
+      - name: Test
+        run: dotnet test $env:SOLUTION --configuration Release --no-restore
 
-    # Restore the application to populate the obj folder with RuntimeIdentifiers
-    - name: Restore the application
-      run: msbuild $env:Solution_Name /t:Restore /p:Configuration=$env:Configuration
-      env:
-        Configuration: ${{ matrix.configuration }}
+      - name: Build
+        run: dotnet build $env:SOLUTION --configuration Release --no-restore
 
-    # Decode the base 64 encoded pfx and save the Signing_Certificate
-    - name: Decode the pfx
-      run: |
-        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
-        $certificatePath = Join-Path -Path $env:Wap_Project_Directory -ChildPath GitHubActionsWorkflow.pfx
-        [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
+  package-msix:
+    name: Package MSIX
+    runs-on: windows-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
 
-    # Create the app package by building and packaging the Windows Application Packaging project
-    - name: Create the app package
-      run: msbuild $env:Wap_Project_Path /p:Configuration=$env:Configuration /p:UapAppxPackageBuildMode=$env:Appx_Package_Build_Mode /p:AppxBundle=$env:Appx_Bundle /p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx /p:PackageCertificatePassword=${{ secrets.Pfx_Key }}
-      env:
-        Appx_Bundle: Always
-        Appx_Bundle_Platforms: x86|x64
-        Appx_Package_Build_Mode: StoreUpload
-        Configuration: ${{ matrix.configuration }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # Remove the pfx
-    - name: Remove the pfx
-      run: Remove-Item -path $env:Wap_Project_Directory\GitHubActionsWorkflow.pfx
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # Upload the MSIX package: https://github.com/marketplace/actions/upload-a-build-artifact
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: MSIX Package
-        path: ${{ env.Wap_Project_Directory }}\AppPackages
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          } else {
+            $version = '${{ github.event.inputs.version }}'
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Version '$version' must use major.minor.patch format."
+          }
+
+          $appxVersion = "$version.0"
+          $manifest = Get-Content -LiteralPath $env:PACKAGE_MANIFEST -Raw
+          $manifest = $manifest -replace 'Version="[^"]+"', "Version=`"$appxVersion`""
+          Set-Content -LiteralPath $env:PACKAGE_MANIFEST -Value $manifest -NoNewline
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "appx_version=$appxVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Create signing certificate
+        id: cert
+        shell: pwsh
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $env:PACKAGE_SUBJECT `
+            -KeyUsage DigitalSignature `
+            -FriendlyName "Native Guard MSIX Signing" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3") `
+            -NotAfter (Get-Date).AddYears(3)
+
+          "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
+
+      - name: Publish signed MSIX
+        shell: pwsh
+        run: |
+          dotnet publish $env:APP_PROJECT `
+            --configuration Release `
+            --runtime win-arm64 `
+            --self-contained true `
+            -p:PublishAot=true `
+            -p:GenerateAppxPackageOnBuild=true `
+            -p:AppxPackageSigningEnabled=true `
+            -p:PackageCertificateThumbprint=${{ steps.cert.outputs.thumbprint }} `
+            -p:AppxBundle=Never `
+            -p:UapAppxPackageBuildMode=SideloadOnly `
+            -p:AppxPackageDir=artifacts/msix/
+
+      - name: Verify package payload
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $msix = Get-ChildItem -Path src/NativeGuard.App/artifacts/msix -Recurse -Filter *.msix | Select-Object -First 1
+          if (-not $msix) {
+            throw "MSIX package was not produced."
+          }
+
+          $entries = [IO.Compression.ZipFile]::OpenRead($msix.FullName).Entries
+          $unexpected = $entries | Where-Object { $_.FullName -match 'onnx|DirectML|MachineLearning' }
+          if ($unexpected) {
+            $unexpected | ForEach-Object { Write-Error "Unexpected AI/ML payload: $($_.FullName)" }
+            throw "MSIX contains AI/ML runtime payload."
+          }
+
+      - name: Bundle installer zip
+        id: bundle
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $packageDir = Get-ChildItem -Path src/NativeGuard.App/artifacts/msix -Directory | Select-Object -First 1
+          if (-not $packageDir) {
+            throw "MSIX package directory was not produced."
+          }
+
+          New-Item -ItemType Directory -Force -Path artifacts/releases | Out-Null
+          $zip = "artifacts/releases/NativeGuard-v$version-win-arm64-msix.zip"
+          Compress-Archive -Path (Join-Path $packageDir.FullName '*') -DestinationPath $zip -Force
+
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "name=NativeGuard-v$version-win-arm64-msix.zip" >> $env:GITHUB_OUTPUT
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bundle.outputs.name }}
+          path: ${{ steps.bundle.outputs.zip }}
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          $zip = '${{ steps.bundle.outputs.zip }}'
+          $notes = @"
+          ## Native Guard v$version
+
+          Windows ARM64 MSIX release.
+
+          ### Install
+          1. Download ``NativeGuard-v$version-win-arm64-msix.zip``.
+          2. Extract it.
+          3. Run ``Install.ps1`` from PowerShell to trust the self-signed certificate and install the MSIX.
+
+          ### Validation
+          - ``dotnet test`` passed in GitHub Actions
+          - Release package was built as ``win-arm64`` Native AOT
+          - MSIX payload check confirmed no AI/ML runtime files
+          "@
+
+          gh release create $env:GITHUB_REF_NAME $zip --title "Native Guard v$version" --notes $notes
