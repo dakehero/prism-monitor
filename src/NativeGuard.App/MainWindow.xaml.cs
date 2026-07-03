@@ -1,12 +1,16 @@
 using System.Collections.ObjectModel;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
+using NativeGuard.Core.Ui;
+using Windows.Graphics;
 
 namespace NativeGuard_App;
 
 public sealed partial class MainWindow : Window
 {
     private readonly NonNativeProcessService _processService;
+    private readonly SizeInt32 _windowSize = new(640, 420);
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
 
@@ -19,7 +23,24 @@ public sealed partial class MainWindow : Window
         SetTitleBar(AppTitleBar);
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
-        AppWindow.Resize(new Windows.Graphics.SizeInt32(640, 420));
+        AppWindow.Resize(_windowSize);
+    }
+
+    public void MoveNear(ScreenRect trayIconRect)
+    {
+        DisplayArea displayArea = DisplayArea.GetFromPoint(
+            new PointInt32(
+                trayIconRect.X + trayIconRect.Width / 2,
+                trayIconRect.Y + trayIconRect.Height / 2),
+            DisplayAreaFallback.Primary);
+
+        RectInt32 workArea = displayArea.WorkArea;
+        ScreenPoint target = PopupPlacementCalculator.Calculate(
+            trayIconRect,
+            new ScreenSize(_windowSize.Width, _windowSize.Height),
+            new ScreenRect(workArea.X, workArea.Y, workArea.Width, workArea.Height));
+
+        AppWindow.Move(new PointInt32(target.X, target.Y));
     }
 
     public async Task RefreshAsync()

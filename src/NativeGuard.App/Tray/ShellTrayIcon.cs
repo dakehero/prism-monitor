@@ -1,13 +1,14 @@
 using System.Runtime.InteropServices;
+using NativeGuard.Core.Ui;
 using NativeGuard_App.Interop;
 
 namespace NativeGuard_App.Tray;
 
-internal sealed class TrayIcon : IDisposable
+internal sealed class ShellTrayIcon : IDisposable
 {
     private const uint IconId = 1;
-    private const uint CallbackMessage = NativeMethods.WindowMessageApp + 1;
-    private readonly NativeMethods.WindowProc _windowProc;
+    private const uint CallbackMessage = ShellNotifyIconInterop.WindowMessageApp + 1;
+    private readonly ShellNotifyIconInterop.WindowProc _windowProc;
     private readonly IntPtr _messageWindow;
     private readonly IntPtr _icon;
     private readonly Action _openRequested;
@@ -15,7 +16,7 @@ internal sealed class TrayIcon : IDisposable
     private readonly Func<Task<string>> _tooltipProvider;
     private bool _disposed;
 
-    public TrayIcon(Action openRequested, Action exitRequested, Func<Task<string>> tooltipProvider)
+    public ShellTrayIcon(Action openRequested, Action exitRequested, Func<Task<string>> tooltipProvider)
     {
         _openRequested = openRequested;
         _exitRequested = exitRequested;
@@ -29,8 +30,8 @@ internal sealed class TrayIcon : IDisposable
             ClassName = className
         };
 
-        _ = NativeMethods.RegisterClass(ref windowClass);
-        _messageWindow = NativeMethods.CreateWindowEx(
+        _ = ShellNotifyIconInterop.RegisterClass(ref windowClass);
+        _messageWindow = ShellNotifyIconInterop.CreateWindowEx(
             0,
             className,
             string.Empty,
@@ -45,13 +46,13 @@ internal sealed class TrayIcon : IDisposable
             IntPtr.Zero);
 
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
-        _icon = NativeMethods.LoadImage(
+        _icon = ShellNotifyIconInterop.LoadImage(
             IntPtr.Zero,
             iconPath,
-            NativeMethods.ImageIcon,
+            ShellNotifyIconInterop.ImageIcon,
             0,
             0,
-            NativeMethods.LoadFromFile | NativeMethods.LoadDefaultSize);
+            ShellNotifyIconInterop.LoadFromFile | ShellNotifyIconInterop.LoadDefaultSize);
 
         AddOrUpdate("Native Guard");
     }
@@ -62,6 +63,30 @@ internal sealed class TrayIcon : IDisposable
         AddOrUpdate(tooltip);
     }
 
+    public bool TryGetIconRect(out ScreenRect rect)
+    {
+        NotifyIconIdentifier identifier = new()
+        {
+            Size = checked((uint)Marshal.SizeOf<NotifyIconIdentifier>()),
+            WindowHandle = _messageWindow,
+            Id = IconId
+        };
+
+        int result = ShellNotifyIconInterop.Shell_NotifyIconGetRect(ref identifier, out NativeRect nativeRect);
+        if (result != 0)
+        {
+            rect = default;
+            return false;
+        }
+
+        rect = new ScreenRect(
+            nativeRect.Left,
+            nativeRect.Top,
+            nativeRect.Right - nativeRect.Left,
+            nativeRect.Bottom - nativeRect.Top);
+        return true;
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -70,16 +95,16 @@ internal sealed class TrayIcon : IDisposable
         }
 
         NotifyIconData data = CreateData("Native Guard");
-        _ = NativeMethods.ShellNotifyIcon(NativeMethods.NotifyIconDelete, ref data);
+        _ = ShellNotifyIconInterop.ShellNotifyIcon(ShellNotifyIconInterop.NotifyIconDelete, ref data);
 
         if (_icon != IntPtr.Zero)
         {
-            _ = NativeMethods.DestroyIcon(_icon);
+            _ = ShellNotifyIconInterop.DestroyIcon(_icon);
         }
 
         if (_messageWindow != IntPtr.Zero)
         {
-            _ = NativeMethods.DestroyWindow(_messageWindow);
+            _ = ShellNotifyIconInterop.DestroyWindow(_messageWindow);
         }
 
         _disposed = true;
@@ -90,21 +115,21 @@ internal sealed class TrayIcon : IDisposable
         if (message == CallbackMessage)
         {
             uint trayMessage = unchecked((uint)lParam.ToInt64());
-            if (trayMessage == NativeMethods.WindowMessageLeftButtonUp)
+            if (trayMessage == ShellNotifyIconInterop.WindowMessageLeftButtonUp)
             {
                 _openRequested();
             }
-            else if (trayMessage == NativeMethods.WindowMessageRightButtonUp)
+            else if (trayMessage == ShellNotifyIconInterop.WindowMessageRightButtonUp)
             {
                 _exitRequested();
             }
-            else if (trayMessage == NativeMethods.WindowMessageMouseMove)
+            else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
             {
                 _ = RefreshTooltipAsync();
             }
         }
 
-        return NativeMethods.DefWindowProc(hwnd, message, wParam, lParam);
+        return ShellNotifyIconInterop.DefWindowProc(hwnd, message, wParam, lParam);
     }
 
     private void AddOrUpdate(string tooltip)
@@ -115,8 +140,8 @@ internal sealed class TrayIcon : IDisposable
         }
 
         NotifyIconData data = CreateData(tooltip);
-        _ = NativeMethods.ShellNotifyIcon(NativeMethods.NotifyIconModify, ref data)
-            || NativeMethods.ShellNotifyIcon(NativeMethods.NotifyIconAdd, ref data);
+        _ = ShellNotifyIconInterop.ShellNotifyIcon(ShellNotifyIconInterop.NotifyIconModify, ref data)
+            || ShellNotifyIconInterop.ShellNotifyIcon(ShellNotifyIconInterop.NotifyIconAdd, ref data);
     }
 
     private NotifyIconData CreateData(string tooltip)
@@ -126,7 +151,7 @@ internal sealed class TrayIcon : IDisposable
             Size = checked((uint)Marshal.SizeOf<NotifyIconData>()),
             WindowHandle = _messageWindow,
             Id = IconId,
-            Flags = NativeMethods.NotifyIconMessage | NativeMethods.NotifyIconIcon | NativeMethods.NotifyIconTip,
+            Flags = ShellNotifyIconInterop.NotifyIconMessage | ShellNotifyIconInterop.NotifyIconIcon | ShellNotifyIconInterop.NotifyIconTip,
             CallbackMessage = CallbackMessage,
             Icon = _icon,
             Tip = TruncateTooltip(tooltip)

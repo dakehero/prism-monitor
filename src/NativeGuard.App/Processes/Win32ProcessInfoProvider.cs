@@ -31,7 +31,7 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
     {
         try
         {
-            if (!NativeMethods.IsWow64Process2(process.SafeHandle, out ushort processMachine, out ushort nativeMachine))
+            if (!ProcessInterop.IsWow64Process2(process.SafeHandle, out ushort processMachine, out ushort nativeMachine))
             {
                 return null;
             }

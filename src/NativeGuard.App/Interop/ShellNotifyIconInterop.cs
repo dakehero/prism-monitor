@@ -1,9 +1,8 @@
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace NativeGuard_App.Interop;
 
-internal static partial class NativeMethods
+internal static class ShellNotifyIconInterop
 {
     internal delegate IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
@@ -20,13 +19,6 @@ internal static partial class NativeMethods
     internal const uint WindowMessageMouseMove = 0x0200;
     internal const uint WindowMessageLeftButtonUp = 0x0202;
     internal const uint WindowMessageRightButtonUp = 0x0205;
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool IsWow64Process2(
-        SafeProcessHandle process,
-        out ushort processMachine,
-        out ushort nativeMachine);
 
     [DllImport("user32.dll", EntryPoint = "RegisterClassW", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern ushort RegisterClass(ref WindowClass windowClass);
@@ -69,13 +61,16 @@ internal static partial class NativeMethods
     [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", SetLastError = true, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ShellNotifyIcon(uint message, ref NotifyIconData data);
+
+    [DllImport("shell32.dll", SetLastError = true)]
+    internal static extern int Shell_NotifyIconGetRect(ref NotifyIconIdentifier identifier, out NativeRect iconLocation);
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal struct WindowClass
 {
     public uint Style;
-    public NativeMethods.WindowProc WindowProc;
+    public ShellNotifyIconInterop.WindowProc WindowProc;
     public int ClassExtraBytes;
     public int WindowExtraBytes;
     public IntPtr Instance;
@@ -98,4 +93,22 @@ internal struct NotifyIconData
 
     [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
     public string Tip;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct NotifyIconIdentifier
+{
+    public uint Size;
+    public IntPtr WindowHandle;
+    public uint Id;
+    public Guid GuidItem;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct NativeRect
+{
+    public readonly int Left;
+    public readonly int Top;
+    public readonly int Right;
+    public readonly int Bottom;
 }

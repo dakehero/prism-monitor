@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
+using NativeGuard.Core.Ui;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
 
@@ -9,7 +10,7 @@ public partial class App : Application
 {
     private readonly NonNativeProcessService _processService = new(new Win32ProcessInfoProvider());
     private MainWindow? _window;
-    private TrayIcon? _trayIcon;
+    private ShellTrayIcon? _trayIcon;
 
     public App()
     {
@@ -18,7 +19,7 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        _trayIcon = new TrayIcon(
+        _trayIcon = new ShellTrayIcon(
             OpenProcessWindow,
             ExitApplication,
             GetTooltipAsync);
@@ -32,7 +33,14 @@ public partial class App : Application
             _window.Closed += (_, _) => _window = null;
         }
 
+        ShellTrayIcon? trayIcon = _trayIcon;
+
         _window.Activate();
+        if (trayIcon is not null && trayIcon.TryGetIconRect(out ScreenRect trayIconRect))
+        {
+            _window.MoveNear(trayIconRect);
+        }
+
         _ = _window.RefreshAsync();
     }
 
