@@ -1,52 +1,10 @@
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace NativeGuard_App.Interop;
 
 internal static partial class NativeMethods
 {
-    internal const uint ProcessQueryLimitedInformation = 0x1000;
-
-    [LibraryImport("psapi.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool EnumProcesses(
-        [Out] uint[] processIds,
-        uint bytes,
-        out uint bytesReturned);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    internal static partial IntPtr OpenProcess(
-        uint desiredAccess,
-        [MarshalAs(UnmanagedType.Bool)] bool inheritHandle,
-        uint processId);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool CloseHandle(IntPtr handle);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool IsWow64Process2(
-        IntPtr process,
-        out ushort processMachine,
-        out ushort nativeMachine);
-
-    [LibraryImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool GetProcessTimes(
-        IntPtr process,
-        out FileTime creationTime,
-        out FileTime exitTime,
-        out FileTime kernelTime,
-        out FileTime userTime);
-
-    [LibraryImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool QueryFullProcessImageName(
-        IntPtr process,
-        uint flags,
-        Span<char> executableName,
-        ref uint size);
-
     internal delegate IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
     internal const int ImageIcon = 1;
@@ -62,6 +20,13 @@ internal static partial class NativeMethods
     internal const uint WindowMessageMouseMove = 0x0200;
     internal const uint WindowMessageLeftButtonUp = 0x0202;
     internal const uint WindowMessageRightButtonUp = 0x0205;
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsWow64Process2(
+        SafeProcessHandle process,
+        out ushort processMachine,
+        out ushort nativeMachine);
 
     [DllImport("user32.dll", EntryPoint = "RegisterClassW", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern ushort RegisterClass(ref WindowClass windowClass);
@@ -104,18 +69,6 @@ internal static partial class NativeMethods
     [DllImport("shell32.dll", EntryPoint = "Shell_NotifyIconW", SetLastError = true, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool ShellNotifyIcon(uint message, ref NotifyIconData data);
-}
-
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct FileTime
-{
-    private readonly uint _lowDateTime;
-    private readonly uint _highDateTime;
-
-    public long ToTicks()
-    {
-        return ((long)_highDateTime << 32) | _lowDateTime;
-    }
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
