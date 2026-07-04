@@ -71,7 +71,7 @@ public sealed partial class MainWindow : Window
         try
         {
             IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            ApplyProcessSnapshot(processes);
+            await ApplyProcessSnapshotAsync(processes);
         }
         finally
         {
@@ -118,7 +118,7 @@ public sealed partial class MainWindow : Window
         HiddenToTray?.Invoke(this, EventArgs.Empty);
     }
 
-    private void ApplyProcessSnapshot(IReadOnlyList<NonNativeProcessInfo> processes)
+    private async Task ApplyProcessSnapshotAsync(IReadOnlyList<NonNativeProcessInfo> processes)
     {
         Dictionary<int, ProcessRow> rowsByProcessId = Rows.ToDictionary(row => row.ProcessId);
         ProcessListDiff diff = ProcessListDiffer.Diff(rowsByProcessId.Keys, processes);
@@ -139,7 +139,7 @@ public sealed partial class MainWindow : Window
                     process.Name,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
-                    _iconProvider.GetIcon(process.Name, process.ExecutablePath));
+                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath));
             }
             else
             {
@@ -148,7 +148,7 @@ public sealed partial class MainWindow : Window
                     process.ProcessId,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
-                    _iconProvider.GetIcon(process.Name, process.ExecutablePath)));
+                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath)));
             }
         }
 
