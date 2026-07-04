@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using NativeGuard.Core.Processes;
 using NativeGuard.Core.Ui;
+using NativeGuard_App.Notifications;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
 
@@ -15,10 +16,13 @@ public partial class App : Application
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "NativeGuard",
         "ignored-processes.json"));
+    private readonly NonNativeProcessNotifier _processNotifier = new();
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+    private readonly DispatcherTimer _notificationTimer = new();
     private MainWindow? _window;
     private ShellTrayIcon? _trayIcon;
+    private NonNativeProcessToastService? _toastService;
 
     public App()
     {
@@ -34,6 +38,12 @@ public partial class App : Application
             OpenProcessWindow,
             ExitApplication,
             GetTooltipAsync);
+
+        _toastService = new NonNativeProcessToastService(_ignoredProcessStore);
+        _toastService.Register();
+        _notificationTimer.Interval = TimeSpan.FromSeconds(10);
+        _notificationTimer.Tick += NotificationTimer_Tick;
+        _notificationTimer.Start();
     }
 
     private void OpenProcessWindow()
@@ -48,8 +58,10 @@ public partial class App : Application
     private void ExitApplication()
     {
         _windowLifetime.RequestExitClose();
+        _notificationTimer.Stop();
         _window?.CloseForExit();
         _trayIcon?.Dispose();
+        _toastService?.Dispose();
         Exit();
     }
 
@@ -103,5 +115,25 @@ public partial class App : Application
     private void CurrentInstance_Activated(object? sender, AppActivationArguments args)
     {
         _ = _dispatcherQueue.TryEnqueue(OpenProcessWindow);
+    }
+
+    private async void NotificationTimer_Tick(object? sender, object e)
+    {
+        try
+        {
+            IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
+            IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+            IReadOnlyList<NonNativeProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, ignoredNames);
+            IReadOnlyList<NonNativeProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(visibleProcesses);
+
+            foreach (NonNativeProcessInfo process in newProcesses)
+            {
+                _toastService?.ShowNewProcess(process);
+            }
+        }
+        catch
+        {
+            // Toast monitoring is best-effort and must not terminate the tray app.
+        }
     }
 }
