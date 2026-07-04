@@ -7,7 +7,10 @@ Native Guard is a Windows ARM64 tray app for spotting non-native desktop process
 - WinUI 3 tray application
 - Native AOT `win-arm64` publish
 - Lists non-native processes with cumulative CPU time
-- Tooltip shows Top 5 non-native processes by cumulative CPU time
+- Tooltip shows Top 5 non-native processes by name and architecture
+- Main window shows process icons and supports ending or ignoring a process
+- Ignore rules are persisted locally and apply to the main window, tooltip, and Toast notifications
+- Toast notification for newly detected non-native processes, with quick actions to end or ignore
 - Uses public Windows APIs and avoids CPU sampling
 
 ## Build
@@ -28,7 +31,8 @@ src/NativeGuard.App/bin/Release/net10.0-windows10.0.26100.0/win-arm64/publish/Na
 Run `NativeGuard.App.exe` as administrator. The app starts in the notification area.
 
 - Left-click the tray icon to show the process list.
-- Right-click the tray icon to exit.
+- Right-click the tray icon to open the tray menu, then choose `退出`.
+- Use the main window to end a process or add/remove ignored process names.
 
 ## MSIX package
 
