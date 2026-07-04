@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using NativeGuard.Core.Ui;
 using NativeGuard_App.Interop;
 
@@ -59,8 +60,15 @@ internal sealed class ShellTrayIcon : IDisposable
 
     public async Task RefreshTooltipAsync()
     {
-        string tooltip = await _tooltipProvider().ConfigureAwait(false);
-        AddOrUpdate(tooltip);
+        try
+        {
+            string tooltip = await _tooltipProvider().ConfigureAwait(false);
+            AddOrUpdate(tooltip);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+        }
     }
 
     public bool TryGetIconRect(out ScreenRect rect)
@@ -114,18 +122,25 @@ internal sealed class ShellTrayIcon : IDisposable
     {
         if (message == CallbackMessage)
         {
-            uint trayMessage = unchecked((uint)lParam.ToInt64());
-            if (trayMessage == ShellNotifyIconInterop.WindowMessageLeftButtonUp)
+            try
             {
-                _openRequested();
+                uint trayMessage = unchecked((uint)lParam.ToInt64());
+                if (trayMessage == ShellNotifyIconInterop.WindowMessageLeftButtonUp)
+                {
+                    _openRequested();
+                }
+                else if (trayMessage == ShellNotifyIconInterop.WindowMessageRightButtonUp)
+                {
+                    _exitRequested();
+                }
+                else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
+                {
+                    _ = RefreshTooltipAsync();
+                }
             }
-            else if (trayMessage == ShellNotifyIconInterop.WindowMessageRightButtonUp)
+            catch (Exception ex)
             {
-                _exitRequested();
-            }
-            else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
-            {
-                _ = RefreshTooltipAsync();
+                Debug.WriteLine(ex);
             }
         }
 

@@ -1,6 +1,5 @@
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
-using NativeGuard.Core.Ui;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
 
@@ -33,15 +32,9 @@ public partial class App : Application
             _window.Closed += (_, _) => _window = null;
         }
 
-        ShellTrayIcon? trayIcon = _trayIcon;
-
         _window.Activate();
-        if (trayIcon is not null && trayIcon.TryGetIconRect(out ScreenRect trayIconRect))
-        {
-            _window.MoveNear(trayIconRect);
-        }
-
-        _ = _window.RefreshAsync();
+        _window.ShowMainWindow();
+        _ = RefreshProcessWindowAsync(_window);
     }
 
     private void ExitApplication()
@@ -54,5 +47,17 @@ public partial class App : Application
     {
         IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
         return TrayTooltipFormatter.FormatTopProcesses(processes, 5);
+    }
+
+    private static async Task RefreshProcessWindowAsync(MainWindow window)
+    {
+        try
+        {
+            await window.RefreshAsync();
+        }
+        catch
+        {
+            // Keep tray callbacks from terminating the app if a refresh fails.
+        }
     }
 }

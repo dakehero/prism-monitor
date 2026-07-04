@@ -17,16 +17,23 @@ public static class TrayTooltipFormatter
         }
 
         StringBuilder builder = new();
-        builder.Append(CultureInvariant($"Native Guard: Top {topProcesses.Count} non-native by CPU time"));
+        builder.Append(CultureInvariant($"Native Guard: Top {topProcesses.Count}"));
 
         foreach (NonNativeProcessInfo process in topProcesses)
         {
             builder.AppendLine();
             builder.Append(CultureInvariant(
-                $"{process.Name} (PID {process.ProcessId}, {process.Architecture}) {CpuTimeFormatter.Format(process.CpuTime)}"));
+                $"{GetDisplayName(process)} #{process.ProcessId} {process.Architecture} {CpuTimeFormatter.Format(process.CpuTime)}"));
         }
 
         return builder.ToString();
+    }
+
+    private static string GetDisplayName(NonNativeProcessInfo process)
+    {
+        return string.IsNullOrWhiteSpace(process.Name)
+            ? CultureInvariant($"PID {process.ProcessId}")
+            : process.Name;
     }
 
     private static string CultureInvariant(FormattableString value)

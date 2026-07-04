@@ -24,7 +24,7 @@
             </TitleBar.IconSource>
         </TitleBar>
 
-        <Grid Grid.Row="1" Padding="12" RowSpacing="10">
+        <Grid Grid.Row="1" Padding="16" RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -40,12 +40,12 @@
                     VerticalAlignment="Center"
                     FontSize="18"
                     FontWeight="SemiBold"
-                    Text="Non-native processes" />
+                    Text="非原生进程" />
 
                 <Button
                     Grid.Column="1"
                     Click="RefreshButton_Click"
-                    Content="Refresh" />
+                    Content="刷新" />
             </Grid>
 
             <ListView
@@ -60,10 +60,10 @@
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="120" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock FontWeight="SemiBold" Text="Process" />
+                        <TextBlock FontWeight="SemiBold" Text="进程" />
                         <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="PID" />
-                        <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="Arch" />
-                        <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="CPU Time" />
+                        <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="架构" />
+                        <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="CPU 时间" />
                     </Grid>
                 </ListView.Header>
                 <ListView.ItemTemplate>
