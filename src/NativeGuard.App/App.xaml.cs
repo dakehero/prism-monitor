@@ -39,6 +39,7 @@ public partial class App : Application
 
     private void ExitApplication()
     {
+        _window?.CloseForExit();
         _trayIcon?.Dispose();
         Exit();
     }

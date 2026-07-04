@@ -12,6 +12,7 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly SizeInt32 _windowSize = new(860, 560);
     private bool _isRefreshing;
+    private bool _allowClose;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
 
@@ -28,7 +29,7 @@ public sealed partial class MainWindow : Window
 
         _refreshTimer.Interval = TimeSpan.FromSeconds(3);
         _refreshTimer.Tick += RefreshTimer_Tick;
-        _refreshTimer.Start();
+        AppWindow.Closing += AppWindow_Closing;
         Closed += (_, _) => _refreshTimer.Stop();
     }
 
@@ -41,6 +42,13 @@ public sealed partial class MainWindow : Window
         }
 
         AppWindow.Show();
+        _refreshTimer.Start();
+    }
+
+    public void CloseForExit()
+    {
+        _allowClose = true;
+        Close();
     }
 
     public async Task RefreshAsync()
@@ -79,6 +87,18 @@ public sealed partial class MainWindow : Window
     private async void RefreshTimer_Tick(object? sender, object e)
     {
         await RefreshAsync();
+    }
+
+    private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (_allowClose)
+        {
+            return;
+        }
+
+        args.Cancel = true;
+        _refreshTimer.Stop();
+        sender.Hide();
     }
 }
 

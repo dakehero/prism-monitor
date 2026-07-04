@@ -4,15 +4,22 @@ namespace NativeGuard.Core.Tests;
 public sealed class AppManifestTests
 {
     [TestMethod]
-    public void AppManifestDoesNotRequestAdministratorElevation()
+    public void AppManifestRequestsAdministratorElevation()
     {
         string manifestPath = FindRepoFile(Path.Combine("src", "NativeGuard.App", "app.manifest"));
         string manifest = File.ReadAllText(manifestPath);
 
-        StringAssert.Contains(manifest, "requestedExecutionLevel level=\"asInvoker\"");
-        Assert.IsFalse(
-            manifest.Contains("requestedExecutionLevel level=\"requireAdministrator\"", StringComparison.Ordinal),
-            "MSIX activation fails when the app executable requests administrator elevation.");
+        StringAssert.Contains(manifest, "requestedExecutionLevel level=\"requireAdministrator\"");
+    }
+
+    [TestMethod]
+    public void PackageManifestAllowsElevation()
+    {
+        string manifestPath = FindRepoFile(Path.Combine("src", "NativeGuard.App", "Package.appxmanifest"));
+        string manifest = File.ReadAllText(manifestPath);
+
+        StringAssert.Contains(manifest, "Capability Name=\"runFullTrust\"");
+        StringAssert.Contains(manifest, "Capability Name=\"allowElevation\"");
     }
 
     private static string FindRepoFile(string relativePath)
