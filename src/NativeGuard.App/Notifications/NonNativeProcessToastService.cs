@@ -80,7 +80,8 @@ internal sealed class NonNativeProcessToastService : IDisposable
             && args.Arguments.TryGetValue(ProcessIdKey, out string? processIdValue)
             && int.TryParse(processIdValue, out int processId))
         {
-            _ = _processTerminator.Terminate(processId);
+            ProcessTerminationResult result = _processTerminator.Terminate(processId);
+            ShowStatus("结束进程", result.Message);
             return;
         }
 
@@ -88,6 +89,22 @@ internal sealed class NonNativeProcessToastService : IDisposable
             && args.Arguments.TryGetValue(ProcessNameKey, out string? processName))
         {
             await _ignoredProcessStore.AddAsync(processName);
+            ShowStatus("已加入忽略", processName);
         }
+    }
+
+    private void ShowStatus(string title, string message)
+    {
+        if (!_registered)
+        {
+            return;
+        }
+
+        AppNotification notification = new AppNotificationBuilder()
+            .AddText(title)
+            .AddText(message)
+            .BuildNotification();
+
+        _manager.Show(notification);
     }
 }
