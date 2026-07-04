@@ -10,7 +10,7 @@ public sealed class TrayTooltipFormatterTests
     {
         string result = TrayTooltipFormatter.FormatTopProcesses([], 5);
 
-        Assert.AreEqual("Native Guard: no non-native processes", result);
+        Assert.AreEqual("没有非原生进程", result);
     }
 
     [TestMethod]
@@ -25,11 +25,12 @@ public sealed class TrayTooltipFormatterTests
 
         string result = TrayTooltipFormatter.FormatTopProcesses(processes, 2);
 
-        StringAssert.StartsWith(result, "Native Guard: Top 2");
         Assert.IsLessThan(
             result.IndexOf("middle", StringComparison.Ordinal),
             result.IndexOf("fast", StringComparison.Ordinal));
         Assert.IsFalse(result.Contains("slow", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("Native Guard", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("Top", StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -60,8 +61,8 @@ public sealed class TrayTooltipFormatterTests
         string result = TrayTooltipFormatter.FormatTopProcesses(processes, 2);
 
         string[] lines = result.Split(Environment.NewLine);
-        Assert.AreEqual("Native Guard: Top 2", lines[0]);
-        Assert.AreEqual("visualstudio", lines[1]);
-        Assert.AreEqual("photoshop", lines[2]);
+        Assert.HasCount(2, lines);
+        Assert.AreEqual("visualstudio", lines[0]);
+        Assert.AreEqual("photoshop", lines[1]);
     }
 }

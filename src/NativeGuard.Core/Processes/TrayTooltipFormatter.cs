@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace NativeGuard.Core.Processes;
 
 public static class TrayTooltipFormatter
@@ -13,19 +11,10 @@ public static class TrayTooltipFormatter
 
         if (topProcesses.Count == 0)
         {
-            return "Native Guard: no non-native processes";
+            return "没有非原生进程";
         }
 
-        StringBuilder builder = new();
-        builder.Append(CultureInvariant($"Native Guard: Top {topProcesses.Count}"));
-
-        foreach (NonNativeProcessInfo process in topProcesses)
-        {
-            builder.AppendLine();
-            builder.Append(GetDisplayName(process));
-        }
-
-        return builder.ToString();
+        return string.Join(Environment.NewLine, topProcesses.Select(GetDisplayName));
     }
 
     private static string GetDisplayName(NonNativeProcessInfo process)
