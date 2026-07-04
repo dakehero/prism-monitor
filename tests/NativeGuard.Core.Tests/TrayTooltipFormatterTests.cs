@@ -34,7 +34,7 @@ public sealed class TrayTooltipFormatterTests
     }
 
     [TestMethod]
-    public void FormatTopProcesses_IncludesOnlyProcessNames()
+    public void FormatTopProcesses_IncludesProcessNamesWithArchitecture()
     {
         NonNativeProcessInfo[] processes =
         [
@@ -43,14 +43,26 @@ public sealed class TrayTooltipFormatterTests
 
         string result = TrayTooltipFormatter.FormatTopProcesses(processes, 5);
 
-        StringAssert.Contains(result, "chrome");
+        Assert.AreEqual("chrome (x64)", result);
         Assert.IsFalse(result.Contains("#1234", StringComparison.Ordinal));
-        Assert.IsFalse(result.Contains("x64", StringComparison.Ordinal));
         Assert.IsFalse(result.Contains("1m 01s", StringComparison.Ordinal));
     }
 
     [TestMethod]
-    public void FormatTopProcesses_UsesOneProcessNamePerRow()
+    public void FormatTopProcesses_FallsBackToPidWithArchitecture_WhenNameIsMissing()
+    {
+        NonNativeProcessInfo[] processes =
+        [
+            new("", 1234, "x86", TimeSpan.FromSeconds(61))
+        ];
+
+        string result = TrayTooltipFormatter.FormatTopProcesses(processes, 5);
+
+        Assert.AreEqual("PID 1234 (x86)", result);
+    }
+
+    [TestMethod]
+    public void FormatTopProcesses_UsesOneProcessPerRow()
     {
         NonNativeProcessInfo[] processes =
         [
@@ -62,7 +74,7 @@ public sealed class TrayTooltipFormatterTests
 
         string[] lines = result.Split(Environment.NewLine);
         Assert.HasCount(2, lines);
-        Assert.AreEqual("visualstudio", lines[0]);
-        Assert.AreEqual("photoshop", lines[1]);
+        Assert.AreEqual("visualstudio (x64)", lines[0]);
+        Assert.AreEqual("photoshop (x64)", lines[1]);
     }
 }

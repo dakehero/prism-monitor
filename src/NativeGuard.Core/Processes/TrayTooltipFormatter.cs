@@ -19,9 +19,13 @@ public static class TrayTooltipFormatter
 
     private static string GetDisplayName(NonNativeProcessInfo process)
     {
-        return string.IsNullOrWhiteSpace(process.Name)
+        string name = string.IsNullOrWhiteSpace(process.Name)
             ? CultureInvariant($"PID {process.ProcessId}")
             : process.Name;
+
+        return string.IsNullOrWhiteSpace(process.Architecture)
+            ? name
+            : CultureInvariant($"{name} ({process.Architecture})");
     }
 
     private static string CultureInvariant(FormattableString value)
