@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrismMonitor.App/PrismMonitor.App.csproj">
+      <Platform Project="x86" />
+    </Project>
+    <Project Path="src/PrismMonitor.Core/PrismMonitor.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PrismMonitor.Core.Tests/PrismMonitor.Core.Tests.csproj" />
+  </Folder>
+</Solution>

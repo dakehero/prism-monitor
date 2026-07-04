@@ -1,5 +1,5 @@
 param(
-    [string]$AssetDirectory = (Join-Path $PSScriptRoot "..\src\NativeGuard.App\Assets")
+    [string]$AssetDirectory = (Join-Path $PSScriptRoot "..\src\PrismMonitor.App\Assets")
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,7 +34,7 @@ function New-Geometry([string]$Data) {
     return $geometry
 }
 
-function Draw-NativeGuardIcon([System.Windows.Media.DrawingContext]$Context, [double]$X, [double]$Y, [double]$Size) {
+function Draw-PrismMonitorIcon([System.Windows.Media.DrawingContext]$Context, [double]$X, [double]$Y, [double]$Size) {
     $context.PushTransform([System.Windows.Media.TranslateTransform]::new($X, $Y))
     $context.PushTransform([System.Windows.Media.ScaleTransform]::new($Size / 1024.0, $Size / 1024.0))
 
@@ -114,7 +114,7 @@ function Save-IconPng([string]$Path, [int]$Width, [int]$Height, [double]$IconSca
         $iconSize = [Math]::Min($Width, $Height) * $IconScale
         $x = ($Width - $iconSize) / 2
         $y = ($Height - $iconSize) / 2
-        Draw-NativeGuardIcon $context $x $y $iconSize
+        Draw-PrismMonitorIcon $context $x $y $iconSize
     } finally {
         $context.Close()
     }
@@ -180,7 +180,7 @@ function Save-Ico([string]$Path, [int[]]$Sizes) {
     }
 }
 
-Save-IconPng (Join-Path $AssetDirectory "NativeGuardIcon.generated.png") 2048 2048 0.92
+Save-IconPng (Join-Path $AssetDirectory "PrismMonitorIcon.generated.png") 2048 2048 0.92
 Save-Ico (Join-Path $AssetDirectory "AppIcon.ico") @(16, 20, 24, 32, 40, 48, 64, 128, 256)
 
 $scaleAssets = @(
@@ -211,4 +211,4 @@ foreach ($size in $targetSizes) {
     }
 }
 
-Write-Host "Generated Native Guard icon assets in $AssetDirectory"
+Write-Host "Generated Prism Monitor icon assets in $AssetDirectory"

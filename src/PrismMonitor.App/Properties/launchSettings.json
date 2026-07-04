@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "PrismMonitor.App (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "PrismMonitor.App (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

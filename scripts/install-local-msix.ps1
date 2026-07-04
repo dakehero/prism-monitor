@@ -90,14 +90,14 @@ if ($TrustOnly) {
 Write-Host "Installing package: $($msix.FullName)"
 Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
 
-$package = Get-AppxPackage -Name dakehero.NativeGuard
+$package = Get-AppxPackage -Name dakehero.PrismMonitor
 if (-not $package) {
-    throw "Package installation completed, but dakehero.NativeGuard was not found."
+    throw "Package installation completed, but dakehero.PrismMonitor was not found."
 }
 
 Write-Host "Installed: $($package.PackageFullName)"
 
 if ($Launch) {
-    Write-Host "Launching Native Guard..."
+    Write-Host "Launching Prism Monitor..."
     Start-Process "shell:AppsFolder\$($package.PackageFamilyName)!App"
 }

@@ -1,172 +1,88 @@
-# Native Guard Roadmap
+# Prism Monitor Roadmap
 
-本文档记录 Native Guard 后续功能路线。目标是把当前“能发现非原生进程”的托盘工具，逐步增强为一个可观察、可操作、可配置的 Windows ARM64 非原生进程守护工具。
+This document tracks the product direction for Prism Monitor, a Windows ARM64 tray app for observing desktop processes that run through the Windows compatibility layer.
 
-## 原则
+## Principles
 
-- 优先保证低打扰和低资源占用，不做 CPU 采样，不为了实时性牺牲续航。
-- 主界面用于完整信息和操作，托盘悬浮提示保持轻量。
-- 所有进程列表展示都要经过同一套过滤规则，避免 tooltip、主界面、Toast 表现不一致。
-- 对进程执行破坏性操作时要给出明确反馈，权限不足、进程已退出、系统保护进程等情况不能静默失败。
-- 每个阶段都要能独立发布，不把多个大功能绑成一个不可验证的大改。
+- Keep the tray experience lightweight and use the main window for full process details.
+- Route the main window, tray tooltip, and Toast notifications through the same filtering rules.
+- Use system process data only. Do not add CPU sampling loops.
+- Show clear feedback for destructive actions such as ending a process.
+- Keep each milestone small enough to verify and release independently.
 
-## v0.3 主界面可操作化
+## v0.3 Main Window Usability
 
-这一阶段优先提升当前主界面的可用性，不引入复杂设置和通知系统。
+Status: complete.
 
-### 1. 主界面显示进程图标
+### Process Icons
 
-主界面列表在进程名旁显示对应进程图标。
+Show the executable icon next to each process in the main window.
 
-实现方向：
-- 从进程可执行文件路径提取图标。
-- 图标读取失败时使用默认占位图标。
-- 图标需要缓存，不能每次刷新都重新从 exe 提取。
-- 缓存 key 优先使用进程路径；路径不可读时退回进程名。
+Acceptance criteria:
 
-验收标准：
-- 常见 x64/x86 桌面进程能显示自身图标。
-- 无权限或路径不可读的进程不会导致列表刷新失败。
-- 多次刷新不会造成明显卡顿。
+- Common x64 and x86 desktop processes display their own icons.
+- Processes with unreadable paths fall back gracefully.
+- Repeated refreshes do not introduce obvious UI stalls.
 
-### 2. 主界面支持一键结束对应进程
+### End Process
 
-每一行增加结束进程操作。
+Add a per-row action for ending a process.
 
-实现方向：
-- 在每行提供一个明确的结束按钮。
-- 点击后按 PID 尝试结束进程。
-- 操作完成后更新该行状态或从列表移除。
-- 失败时在主界面给出简短原因，例如权限不足、进程已退出、访问被拒绝。
+Acceptance criteria:
 
-交互策略：
-- 第一版不弹全局确认框，避免高频操作被打断。
-- 结束按钮要有足够清晰的危险语义，避免误触。
+- Ordinary user processes can be ended from the main window.
+- Access denied, protected process, and already-exited cases show visible feedback.
+- Failed termination attempts do not crash the app.
 
-验收标准：
-- 可结束普通用户进程。
-- 对无法结束的进程有可见反馈。
-- 进程已经退出时不报错崩溃。
+### No-Flicker Refresh
 
-### 3. 主界面改为无闪烁刷新
+Update the existing list in place instead of clearing and rebuilding it.
 
-当前列表刷新不应再清空后重建，避免视觉闪烁和选择状态丢失。
+Acceptance criteria:
 
-实现方向：
-- 保留 `ObservableCollection`，按 PID 做 diff。
-- 新增进程：插入新行。
-- 已存在进程：更新 CPU 时间、架构、名称、图标等字段。
-- 已退出进程：移除对应行。
-- 排序保持稳定，优先按 CPU 时间降序，其次名称和 PID。
+- Existing rows update CPU time and metadata in place.
+- New processes are inserted and exited processes are removed.
+- The UI remains responsive while refreshes are running.
 
-验收标准：
-- 定时刷新时列表不出现整表闪烁。
-- CPU 时间变化能更新。
-- 新增和退出进程能反映到列表中。
-- 刷新期间 UI 仍可响应左键打开、右键菜单等操作。
+### Tray Tooltip Architecture
 
-### 4. 托盘悬浮提示显示架构
+Keep the tooltip compact, but append the process architecture to each process name.
 
-托盘悬浮提示仍然只显示轻量列表，但在进程名后追加架构。
+Acceptance criteria:
 
-格式：
+- Tooltip rows use the format `process-name (architecture)`.
+- The tooltip stays within the Windows notification area tooltip limit.
 
-```text
-chrome (x64)
-legacy-tool (x86)
-```
+## v0.4 Ignore Rules
 
-实现方向：
-- 继续复用当前 Top N 排序逻辑。
-- 不恢复标题行，不显示 PID、CPU 时间。
-- 空列表仍显示短提示。
+Status: complete.
 
-验收标准：
-- tooltip 中每个非原生进程都显示 `进程名 (架构)`。
-- 不出现 `Native Guard`、`Top N` 之类标题行。
+Add user-configurable ignore rules.
 
-## v0.4 忽略规则
+Acceptance criteria:
 
-这一阶段引入用户配置，统一影响主界面、托盘悬浮提示和后续 Toast。
+- Process-name matching is case-insensitive.
+- Users can ignore a process directly from the main window.
+- Users can view and remove ignored names.
+- Ignore rules persist across app restarts.
+- Ignored processes are hidden from the main window, tray tooltip, and Toast notifications.
 
-### 5. 主界面增加忽略设置
+## v0.5 Toast Notifications
 
-用户可以配置忽略某些进程。
+Status: complete.
 
-第一版范围：
-- 按进程名忽略，例如 `chrome`、`foo.exe`。
-- 忽略规则本地持久化。
-- 设置入口放在主界面内，不做独立复杂设置窗口。
+Notify the user when a new compatibility-mode process appears.
 
-暂不做：
-- 按路径忽略。
-- 按签名、发布者、哈希忽略。
-- 云同步或多用户共享规则。
+Acceptance criteria:
 
-实现方向：
-- 设置存储为本地 JSON。
-- 进程名匹配大小写不敏感。
-- 支持从列表行直接加入忽略。
-- 支持在设置中查看和移除已忽略项。
+- Newly detected compatibility-mode processes trigger a Toast.
+- Processes already running when Prism Monitor starts do not create a notification burst.
+- Ignored processes do not trigger Toast notifications.
+- Toast quick actions can end the process or add it to the ignore list.
 
-验收标准：
-- 被忽略进程不出现在主界面。
-- 被忽略进程不出现在托盘悬浮提示。
-- 重启应用后忽略规则仍生效。
-- 移除忽略规则后进程可重新显示。
+## Future Ideas
 
-## v0.5 非原生进程启动提醒
-
-这一阶段引入 Toast，但要建立在稳定的列表 diff 和忽略规则之上。
-
-### 6. 非原生进程启动 Toast
-
-当新的非原生进程出现时，发送 Toast 提醒用户。
-
-实现方向：
-- 基于列表刷新产生的新进程 diff 触发提醒。
-- 初次启动应用时不对已有进程批量弹 Toast。
-- 被忽略进程不触发 Toast。
-- 同一 PID 不重复提醒。
-
-Toast 内容：
-- 进程名。
-- 架构，例如 x64 或 x86。
-- 可选操作按钮：
-  - 立即结束。
-  - 永久忽略。
-
-第一版约束：
-- 不追求毫秒级实时。
-- 不引入 ETW 或复杂后台服务。
-- 先基于现有刷新节奏和状态 diff 实现。
-
-验收标准：
-- 新启动的非原生进程会触发 Toast。
-- 点击“立即结束”能尝试结束对应进程，并处理失败反馈。
-- 点击“永久忽略”会写入忽略规则，并影响主界面和 tooltip。
-- 应用启动时已有的非原生进程不会造成 Toast 风暴。
-
-## 技术拆分建议
-
-建议按以下内部模块推进：
-
-- `ProcessSnapshot`：统一表示当前可展示的进程状态，包括 PID、名称、架构、CPU 时间、路径、图标 key。
-- `ProcessListDiffer`：根据旧列表和新快照计算新增、更新、删除。
-- `ProcessIconProvider`：读取和缓存进程图标。
-- `ProcessTerminator`：封装结束进程操作和错误结果。
-- `IgnoredProcessStore`：持久化忽略规则。
-- `NonNativeProcessNotifier`：根据新增进程和忽略规则决定是否 Toast。
-
-## 发布节奏
-
-- v0.3 完成后发布：主界面图标、结束按钮、无闪烁刷新、tooltip 架构。
-- v0.4 完成后发布：忽略设置。
-- v0.5 完成后发布：Toast 通知和 Toast 操作。
-
-每个版本发布前至少验证：
-- `dotnet test`
-- Release `win-arm64` build
-- MSIX publish
-- 本地安装
-- 基本手动验证：启动、单例、托盘悬浮、左键打开主界面、右键退出
+- Publisher-aware or path-aware ignore rules.
+- Optional notification quiet hours.
+- Store-ready packaging with a Microsoft Partner Center certificate.
+- Localized UI resources after the English baseline is stable.
