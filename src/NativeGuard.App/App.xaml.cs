@@ -1,6 +1,7 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.Windows.AppLifecycle;
 using NativeGuard.Core.Processes;
-using NativeGuard.Core.Runtime;
 using NativeGuard.Core.Ui;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
@@ -9,10 +10,9 @@ namespace NativeGuard_App;
 
 public partial class App : Application
 {
-    private const string SingleInstanceMutexName = @"Local\dakehero.NativeGuard";
-    private readonly SingleInstanceGuard _singleInstanceGuard = SingleInstanceGuard.Acquire(SingleInstanceMutexName);
     private readonly NonNativeProcessService _processService = new(new Win32ProcessInfoProvider());
     private readonly TrayWindowLifetime _windowLifetime = new();
+    private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private MainWindow? _window;
     private ShellTrayIcon? _trayIcon;
 
@@ -23,13 +23,8 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        if (!_singleInstanceGuard.IsPrimaryInstance)
-        {
-            Exit();
-            return;
-        }
-
         EnsureMainWindow();
+        AppInstance.GetCurrent().Activated += CurrentInstance_Activated;
 
         _trayIcon = new ShellTrayIcon(
             OpenProcessWindow,
@@ -51,7 +46,6 @@ public partial class App : Application
         _windowLifetime.RequestExitClose();
         _window?.CloseForExit();
         _trayIcon?.Dispose();
-        _singleInstanceGuard.Dispose();
         Exit();
     }
 
@@ -98,5 +92,10 @@ public partial class App : Application
         {
             // Keep tray callbacks from terminating the app if a refresh fails.
         }
+    }
+
+    private void CurrentInstance_Activated(object? sender, AppActivationArguments args)
+    {
+        _ = _dispatcherQueue.TryEnqueue(OpenProcessWindow);
     }
 }
