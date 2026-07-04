@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
+using NativeGuard.Core.Runtime;
 using NativeGuard.Core.Ui;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
@@ -8,6 +9,8 @@ namespace NativeGuard_App;
 
 public partial class App : Application
 {
+    private const string SingleInstanceMutexName = @"Local\dakehero.NativeGuard";
+    private readonly SingleInstanceGuard _singleInstanceGuard = SingleInstanceGuard.Acquire(SingleInstanceMutexName);
     private readonly NonNativeProcessService _processService = new(new Win32ProcessInfoProvider());
     private readonly TrayWindowLifetime _windowLifetime = new();
     private MainWindow? _window;
@@ -20,6 +23,12 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        if (!_singleInstanceGuard.IsPrimaryInstance)
+        {
+            Exit();
+            return;
+        }
+
         EnsureMainWindow();
 
         _trayIcon = new ShellTrayIcon(
@@ -42,6 +51,7 @@ public partial class App : Application
         _windowLifetime.RequestExitClose();
         _window?.CloseForExit();
         _trayIcon?.Dispose();
+        _singleInstanceGuard.Dispose();
         Exit();
     }
 
