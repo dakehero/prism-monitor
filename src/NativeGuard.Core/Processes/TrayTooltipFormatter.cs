@@ -22,8 +22,7 @@ public static class TrayTooltipFormatter
         foreach (NonNativeProcessInfo process in topProcesses)
         {
             builder.AppendLine();
-            builder.Append(CultureInvariant(
-                $"{GetDisplayName(process)} #{process.ProcessId} {process.Architecture} {CpuTimeFormatter.Format(process.CpuTime)}"));
+            builder.Append(GetDisplayName(process));
         }
 
         return builder.ToString();

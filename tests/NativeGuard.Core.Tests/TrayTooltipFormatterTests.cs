@@ -33,7 +33,7 @@ public sealed class TrayTooltipFormatterTests
     }
 
     [TestMethod]
-    public void FormatTopProcesses_IncludesNamePidArchitectureAndFormattedCpuTime()
+    public void FormatTopProcesses_IncludesOnlyProcessNames()
     {
         NonNativeProcessInfo[] processes =
         [
@@ -43,13 +43,13 @@ public sealed class TrayTooltipFormatterTests
         string result = TrayTooltipFormatter.FormatTopProcesses(processes, 5);
 
         StringAssert.Contains(result, "chrome");
-        StringAssert.Contains(result, "#1234");
-        StringAssert.Contains(result, "x64");
-        StringAssert.Contains(result, "1m 01s");
+        Assert.IsFalse(result.Contains("#1234", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("x64", StringComparison.Ordinal));
+        Assert.IsFalse(result.Contains("1m 01s", StringComparison.Ordinal));
     }
 
     [TestMethod]
-    public void FormatTopProcesses_UsesCompactRowsStartingWithProcessNames()
+    public void FormatTopProcesses_UsesOneProcessNamePerRow()
     {
         NonNativeProcessInfo[] processes =
         [
@@ -61,9 +61,7 @@ public sealed class TrayTooltipFormatterTests
 
         string[] lines = result.Split(Environment.NewLine);
         Assert.AreEqual("Native Guard: Top 2", lines[0]);
-        StringAssert.StartsWith(lines[1], "visualstudio ");
-        StringAssert.Contains(lines[1], "#1234");
-        StringAssert.StartsWith(lines[2], "photoshop ");
-        StringAssert.Contains(lines[2], "#5678");
+        Assert.AreEqual("visualstudio", lines[1]);
+        Assert.AreEqual("photoshop", lines[2]);
     }
 }
