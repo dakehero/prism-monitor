@@ -19,6 +19,12 @@ internal static class ShellNotifyIconInterop
     internal const uint WindowMessageMouseMove = 0x0200;
     internal const uint WindowMessageLeftButtonUp = 0x0202;
     internal const uint WindowMessageRightButtonUp = 0x0205;
+    internal const uint WindowMessageNull = 0x0000;
+    internal const uint MenuString = 0x00000000;
+    internal const uint TrackPopupMenuReturnCommand = 0x0100;
+    internal const uint TrackPopupMenuRightButton = 0x0002;
+    internal const uint TrackPopupMenuLeftAlign = 0x0000;
+    internal const uint TrackPopupMenuBottomAlign = 0x0020;
 
     [DllImport("user32.dll", EntryPoint = "RegisterClassW", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern ushort RegisterClass(ref WindowClass windowClass);
@@ -44,6 +50,39 @@ internal static class ShellNotifyIconInterop
 
     [DllImport("user32.dll")]
     internal static extern IntPtr DefWindowProc(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll", EntryPoint = "AppendMenuW", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AppendMenu(IntPtr menu, uint flags, UIntPtr itemId, string item);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool DestroyMenu(IntPtr menu);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out NativePoint point);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetForegroundWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern uint TrackPopupMenu(
+        IntPtr menu,
+        uint flags,
+        int x,
+        int y,
+        int reserved,
+        IntPtr hwnd,
+        IntPtr rect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostMessage(IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll", EntryPoint = "LoadImageW", SetLastError = true, CharSet = CharSet.Unicode)]
     internal static extern IntPtr LoadImage(
@@ -111,4 +150,11 @@ internal readonly struct NativeRect
     public readonly int Top;
     public readonly int Right;
     public readonly int Bottom;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal readonly struct NativePoint
+{
+    public readonly int X;
+    public readonly int Y;
 }

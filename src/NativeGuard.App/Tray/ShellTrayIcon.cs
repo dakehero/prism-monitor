@@ -8,6 +8,7 @@ namespace NativeGuard_App.Tray;
 internal sealed class ShellTrayIcon : IDisposable
 {
     private const uint IconId = 1;
+    private const uint ExitMenuCommand = 100;
     private const uint CallbackMessage = ShellNotifyIconInterop.WindowMessageApp + 1;
     private readonly ShellNotifyIconInterop.WindowProc _windowProc;
     private readonly IntPtr _messageWindow;
@@ -131,7 +132,7 @@ internal sealed class ShellTrayIcon : IDisposable
                 }
                 else if (trayMessage == ShellNotifyIconInterop.WindowMessageRightButtonUp)
                 {
-                    _exitRequested();
+                    ShowContextMenu();
                 }
                 else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
                 {
@@ -145,6 +146,62 @@ internal sealed class ShellTrayIcon : IDisposable
         }
 
         return ShellNotifyIconInterop.DefWindowProc(hwnd, message, wParam, lParam);
+    }
+
+    private void ShowContextMenu()
+    {
+        if (_disposed || _messageWindow == IntPtr.Zero)
+        {
+            return;
+        }
+
+        IntPtr menu = ShellNotifyIconInterop.CreatePopupMenu();
+        if (menu == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            _ = ShellNotifyIconInterop.AppendMenu(
+                menu,
+                ShellNotifyIconInterop.MenuString,
+                new UIntPtr(ExitMenuCommand),
+                "退出");
+
+            if (!ShellNotifyIconInterop.GetCursorPos(out NativePoint cursor))
+            {
+                return;
+            }
+
+            _ = ShellNotifyIconInterop.SetForegroundWindow(_messageWindow);
+            uint command = ShellNotifyIconInterop.TrackPopupMenu(
+                menu,
+                ShellNotifyIconInterop.TrackPopupMenuReturnCommand
+                    | ShellNotifyIconInterop.TrackPopupMenuRightButton
+                    | ShellNotifyIconInterop.TrackPopupMenuLeftAlign
+                    | ShellNotifyIconInterop.TrackPopupMenuBottomAlign,
+                cursor.X,
+                cursor.Y,
+                0,
+                _messageWindow,
+                IntPtr.Zero);
+
+            _ = ShellNotifyIconInterop.PostMessage(
+                _messageWindow,
+                ShellNotifyIconInterop.WindowMessageNull,
+                IntPtr.Zero,
+                IntPtr.Zero);
+
+            if (command == ExitMenuCommand)
+            {
+                _exitRequested();
+            }
+        }
+        finally
+        {
+            _ = ShellNotifyIconInterop.DestroyMenu(menu);
+        }
     }
 
     private void AddOrUpdate(string tooltip)
