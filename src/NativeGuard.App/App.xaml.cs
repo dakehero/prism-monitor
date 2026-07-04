@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
+using NativeGuard.Core.Ui;
 using NativeGuard_App.Processes;
 using NativeGuard_App.Tray;
 
@@ -8,6 +9,7 @@ namespace NativeGuard_App;
 public partial class App : Application
 {
     private readonly NonNativeProcessService _processService = new(new Win32ProcessInfoProvider());
+    private readonly TrayWindowLifetime _windowLifetime = new();
     private MainWindow? _window;
     private ShellTrayIcon? _trayIcon;
 
@@ -18,6 +20,8 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        EnsureMainWindow();
+
         _trayIcon = new ShellTrayIcon(
             OpenProcessWindow,
             ExitApplication,
@@ -26,19 +30,16 @@ public partial class App : Application
 
     private void OpenProcessWindow()
     {
-        if (_window is null)
-        {
-            _window = new MainWindow(_processService);
-            _window.Closed += (_, _) => _window = null;
-        }
+        MainWindow window = EnsureMainWindow();
 
-        _window.Activate();
-        _window.ShowMainWindow();
-        _ = RefreshProcessWindowAsync(_window);
+        window.ShowMainWindow();
+        window.Activate();
+        ScheduleRefreshProcessWindow(window);
     }
 
     private void ExitApplication()
     {
+        _windowLifetime.RequestExitClose();
         _window?.CloseForExit();
         _trayIcon?.Dispose();
         Exit();
@@ -48,6 +49,33 @@ public partial class App : Application
     {
         IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
         return TrayTooltipFormatter.FormatTopProcesses(processes, 5);
+    }
+
+    private MainWindow EnsureMainWindow()
+    {
+        if (!_windowLifetime.NeedsWindow && _window is not null)
+        {
+            return _window;
+        }
+
+        _window = new MainWindow(_processService);
+        _windowLifetime.MarkWindowCreated();
+        _window.HiddenToTray += (_, _) => _windowLifetime.MarkHiddenToTray();
+        _window.Closed += (_, _) =>
+        {
+            _windowLifetime.MarkWindowClosed();
+            if (_windowLifetime.NeedsWindow)
+            {
+                _window = null;
+            }
+        };
+
+        return _window;
+    }
+
+    private static void ScheduleRefreshProcessWindow(MainWindow window)
+    {
+        _ = window.DispatcherQueue.TryEnqueue(async () => await RefreshProcessWindowAsync(window));
     }
 
     private static async Task RefreshProcessWindowAsync(MainWindow window)

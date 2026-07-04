@@ -16,6 +16,8 @@ public sealed partial class MainWindow : Window
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
 
+    public event EventHandler? HiddenToTray;
+
     public MainWindow(NonNativeProcessService processService)
     {
         _processService = processService;
@@ -99,6 +101,7 @@ public sealed partial class MainWindow : Window
         args.Cancel = true;
         _refreshTimer.Stop();
         sender.Hide();
+        HiddenToTray?.Invoke(this, EventArgs.Empty);
     }
 }
 
