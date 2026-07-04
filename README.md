@@ -39,3 +39,5 @@ Run Native Guard as administrator. The app starts in the notification area and r
 Release builds also publish a signed MSIX package for Windows ARM64. The current development package uses a self-signed certificate, so use the generated `Install.ps1` script from the release zip to trust the certificate and install the package.
 
 After installation, launch Native Guard from Start or another interactive Windows shell and accept the UAC prompt. Non-interactive commands such as `Start-Process "shell:AppsFolder\..."` cannot satisfy the elevation prompt and can fail with `0x800702E4`.
+
+The v0.5.0 release is the first release intended to cover the full roadmap through process icons, termination, no-flicker refresh, ignore rules, and Toast notifications.

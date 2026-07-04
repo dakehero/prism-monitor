@@ -10,7 +10,7 @@
   <Identity
     Name="dakehero.NativeGuard"
     Publisher="CN=dakehero"
-    Version="0.2.0.0" />
+    Version="0.5.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="59A18C84-873D-4D12-A1ED-F1711414BA73" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
