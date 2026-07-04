@@ -103,9 +103,24 @@ jobs:
           }
 
           $appxVersion = "$version.0"
-          $manifest = Get-Content -LiteralPath $env:PACKAGE_MANIFEST -Raw
-          $manifest = $manifest -replace 'Version="[^"]+"', "Version=`"$appxVersion`""
-          Set-Content -LiteralPath $env:PACKAGE_MANIFEST -Value $manifest -NoNewline
+          [xml]$manifest = Get-Content -LiteralPath $env:PACKAGE_MANIFEST
+          $namespace = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
+          $namespace.AddNamespace("pkg", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
+          $identity = $manifest.SelectSingleNode("/pkg:Package/pkg:Identity", $namespace)
+          if (-not $identity) {
+            throw "Package identity was not found in $env:PACKAGE_MANIFEST."
+          }
+
+          $identity.Version = $appxVersion
+          $settings = [System.Xml.XmlWriterSettings]::new()
+          $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+          $settings.Indent = $true
+          $writer = [System.Xml.XmlWriter]::Create((Resolve-Path -LiteralPath $env:PACKAGE_MANIFEST).Path, $settings)
+          try {
+            $manifest.Save($writer)
+          } finally {
+            $writer.Dispose()
+          }
 
           "version=$version" >> $env:GITHUB_OUTPUT
           "appx_version=$appxVersion" >> $env:GITHUB_OUTPUT
