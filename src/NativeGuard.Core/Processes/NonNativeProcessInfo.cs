@@ -4,4 +4,5 @@ public sealed record NonNativeProcessInfo(
     string Name,
     int ProcessId,
     string Architecture,
-    TimeSpan CpuTime);
+    TimeSpan CpuTime,
+    string? ExecutablePath = null);

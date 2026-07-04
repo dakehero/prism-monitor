@@ -39,8 +39,9 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
                 return null;
             }
 
+            string? executablePath = TryReadProcessImagePath(process);
             ushort? imageMachine = processMachine == 0
-                ? TryReadImageMachine(process)
+                ? TryReadImageMachine(executablePath)
                 : null;
             ProcessArchitectureInfo architecture = ProcessArchitectureClassifier.Classify(processMachine, nativeMachine, imageMachine);
             if (!architecture.IsNonNative)
@@ -52,7 +53,8 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
                 process.ProcessName,
                 process.Id,
                 architecture.DisplayName,
-                process.TotalProcessorTime);
+                process.TotalProcessorTime,
+                executablePath);
         }
         catch (InvalidOperationException)
         {
@@ -68,9 +70,8 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         }
     }
 
-    private static ushort? TryReadImageMachine(Process process)
+    private static ushort? TryReadImageMachine(string? path)
     {
-        string? path = TryReadProcessImagePath(process);
         if (string.IsNullOrWhiteSpace(path))
         {
             return null;

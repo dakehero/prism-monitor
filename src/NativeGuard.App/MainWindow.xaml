@@ -55,30 +55,57 @@
                 <ListView.Header>
                     <Grid Padding="8,0,8,4" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="32" />
                             <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="160" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock FontWeight="SemiBold" Text="进程" />
-                        <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="PID" />
-                        <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="架构" />
-                        <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="CPU 时间" />
+                        <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="进程" />
+                        <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="PID" />
+                        <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="架构" />
+                        <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="CPU 时间" />
+                        <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="操作" />
+                        <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="状态" />
                     </Grid>
                 </ListView.Header>
                 <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="local:ProcessRow">
+                    <DataTemplate>
                         <Grid Padding="8,4" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32" />
                                 <ColumnDefinition Width="2*" />
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="160" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind ProcessId}" />
-                            <TextBlock Grid.Column="2" Text="{x:Bind Architecture}" />
-                            <TextBlock Grid.Column="3" Text="{x:Bind CpuTime}" />
+                            <Image
+                                Width="20"
+                                Height="20"
+                                VerticalAlignment="Center"
+                                Source="{Binding Icon}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Text="{Binding Name}"
+                                TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding ProcessId}" />
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Architecture}" />
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding CpuTime}" />
+                            <Button
+                                Grid.Column="5"
+                                Click="TerminateButton_Click"
+                                Content="结束"
+                                DataContext="{Binding}" />
+                            <TextBlock
+                                Grid.Column="6"
+                                VerticalAlignment="Center"
+                                Text="{Binding Status}"
+                                TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>

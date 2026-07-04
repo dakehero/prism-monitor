@@ -1,7 +1,12 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml;
 using NativeGuard.Core.Processes;
+using NativeGuard_App.Processes;
 using Windows.Graphics;
 
 namespace NativeGuard_App;
@@ -9,6 +14,8 @@ namespace NativeGuard_App;
 public sealed partial class MainWindow : Window
 {
     private readonly NonNativeProcessService _processService;
+    private readonly ProcessIconProvider _iconProvider = new();
+    private readonly ProcessTerminator _processTerminator = new();
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly SizeInt32 _windowSize = new(860, 560);
     private bool _isRefreshing;
@@ -64,16 +71,7 @@ public sealed partial class MainWindow : Window
         try
         {
             IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            Rows.Clear();
-
-            foreach (NonNativeProcessInfo process in processes)
-            {
-                Rows.Add(new ProcessRow(
-                    process.Name,
-                    process.ProcessId,
-                    process.Architecture,
-                    CpuTimeFormatter.Format(process.CpuTime)));
-            }
+            ApplyProcessSnapshot(processes);
         }
         finally
         {
@@ -84,6 +82,22 @@ public sealed partial class MainWindow : Window
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         await RefreshAsync();
+    }
+
+    private async void TerminateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: ProcessRow row })
+        {
+            return;
+        }
+
+        ProcessTerminationResult result = _processTerminator.Terminate(row.ProcessId);
+        row.Status = result.Message;
+
+        if (result.Succeeded)
+        {
+            await RefreshAsync();
+        }
     }
 
     private async void RefreshTimer_Tick(object? sender, object e)
@@ -103,23 +117,138 @@ public sealed partial class MainWindow : Window
         sender.Hide();
         HiddenToTray?.Invoke(this, EventArgs.Empty);
     }
-}
 
-public sealed class ProcessRow
-{
-    public ProcessRow(string name, int processId, string architecture, string cpuTime)
+    private void ApplyProcessSnapshot(IReadOnlyList<NonNativeProcessInfo> processes)
     {
-        Name = name;
-        ProcessId = processId;
-        Architecture = architecture;
-        CpuTime = cpuTime;
+        Dictionary<int, ProcessRow> rowsByProcessId = Rows.ToDictionary(row => row.ProcessId);
+        ProcessListDiff diff = ProcessListDiffer.Diff(rowsByProcessId.Keys, processes);
+
+        foreach (int removedProcessId in diff.RemovedProcessIds)
+        {
+            if (rowsByProcessId.TryGetValue(removedProcessId, out ProcessRow? removedRow))
+            {
+                Rows.Remove(removedRow);
+            }
+        }
+
+        foreach (NonNativeProcessInfo process in diff.SortedRows)
+        {
+            if (rowsByProcessId.TryGetValue(process.ProcessId, out ProcessRow? row))
+            {
+                row.Update(
+                    process.Name,
+                    process.Architecture,
+                    CpuTimeFormatter.Format(process.CpuTime),
+                    _iconProvider.GetIcon(process.Name, process.ExecutablePath));
+            }
+            else
+            {
+                Rows.Add(new ProcessRow(
+                    process.Name,
+                    process.ProcessId,
+                    process.Architecture,
+                    CpuTimeFormatter.Format(process.CpuTime),
+                    _iconProvider.GetIcon(process.Name, process.ExecutablePath)));
+            }
+        }
+
+        MoveRowsIntoSortedOrder(diff.SortedRows);
     }
 
-    public string Name { get; set; }
+    private void MoveRowsIntoSortedOrder(IReadOnlyList<NonNativeProcessInfo> sortedRows)
+    {
+        for (int targetIndex = 0; targetIndex < sortedRows.Count; targetIndex++)
+        {
+            int processId = sortedRows[targetIndex].ProcessId;
+            int currentIndex = IndexOfProcessRow(processId);
+            if (currentIndex >= 0 && currentIndex != targetIndex)
+            {
+                Rows.Move(currentIndex, targetIndex);
+            }
+        }
+    }
+
+    private int IndexOfProcessRow(int processId)
+    {
+        for (int index = 0; index < Rows.Count; index++)
+        {
+            if (Rows[index].ProcessId == processId)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+}
+
+public sealed class ProcessRow : INotifyPropertyChanged
+{
+    private string _name;
+    private string _architecture;
+    private string _cpuTime;
+    private ImageSource _icon;
+    private string _status = string.Empty;
+
+    public ProcessRow(string name, int processId, string architecture, string cpuTime, ImageSource icon)
+    {
+        _name = name;
+        ProcessId = processId;
+        _architecture = architecture;
+        _cpuTime = cpuTime;
+        _icon = icon;
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Name
+    {
+        get => _name;
+        private set => SetProperty(ref _name, value);
+    }
 
     public int ProcessId { get; set; }
 
-    public string Architecture { get; set; }
+    public string Architecture
+    {
+        get => _architecture;
+        private set => SetProperty(ref _architecture, value);
+    }
 
-    public string CpuTime { get; set; }
+    public string CpuTime
+    {
+        get => _cpuTime;
+        private set => SetProperty(ref _cpuTime, value);
+    }
+
+    public ImageSource Icon
+    {
+        get => _icon;
+        private set => SetProperty(ref _icon, value);
+    }
+
+    public string Status
+    {
+        get => _status;
+        set => SetProperty(ref _status, value);
+    }
+
+    public void Update(string name, string architecture, string cpuTime, ImageSource icon)
+    {
+        Name = name;
+        Architecture = architecture;
+        CpuTime = cpuTime;
+        Icon = icon;
+    }
+
+    private void SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }
