@@ -9,7 +9,9 @@ namespace NativeGuard_App;
 public sealed partial class MainWindow : Window
 {
     private readonly NonNativeProcessService _processService;
+    private readonly DispatcherTimer _refreshTimer = new();
     private readonly SizeInt32 _windowSize = new(860, 560);
+    private bool _isRefreshing;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
 
@@ -23,6 +25,11 @@ public sealed partial class MainWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Resize(_windowSize);
+
+        _refreshTimer.Interval = TimeSpan.FromSeconds(3);
+        _refreshTimer.Tick += RefreshTimer_Tick;
+        _refreshTimer.Start();
+        Closed += (_, _) => _refreshTimer.Stop();
     }
 
     public void ShowMainWindow()
@@ -38,20 +45,38 @@ public sealed partial class MainWindow : Window
 
     public async Task RefreshAsync()
     {
-        IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        Rows.Clear();
-
-        foreach (NonNativeProcessInfo process in processes)
+        if (_isRefreshing)
         {
-            Rows.Add(new ProcessRow(
-                process.Name,
-                process.ProcessId,
-                process.Architecture,
-                CpuTimeFormatter.Format(process.CpuTime)));
+            return;
+        }
+
+        _isRefreshing = true;
+        try
+        {
+            IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
+            Rows.Clear();
+
+            foreach (NonNativeProcessInfo process in processes)
+            {
+                Rows.Add(new ProcessRow(
+                    process.Name,
+                    process.ProcessId,
+                    process.Architecture,
+                    CpuTimeFormatter.Format(process.CpuTime)));
+            }
+        }
+        finally
+        {
+            _isRefreshing = false;
         }
     }
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RefreshAsync();
+    }
+
+    private async void RefreshTimer_Tick(object? sender, object e)
     {
         await RefreshAsync();
     }

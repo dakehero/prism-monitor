@@ -60,4 +60,16 @@ public sealed class ProcessArchitectureClassifierTests
         Assert.IsFalse(result.IsNonNative);
         Assert.AreEqual("Unknown", result.DisplayName);
     }
+
+    [TestMethod]
+    public void Classify_UsesImageMachine_WhenProcessMachineIsUnknown()
+    {
+        ProcessArchitectureInfo result = ProcessArchitectureClassifier.Classify(
+            (ushort)Machine.Unknown,
+            (ushort)Machine.Arm64,
+            (ushort)Machine.Amd64);
+
+        Assert.IsTrue(result.IsNonNative);
+        Assert.AreEqual("x64", result.DisplayName);
+    }
 }
