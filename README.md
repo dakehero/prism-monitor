@@ -28,7 +28,7 @@ src/NativeGuard.App/bin/Release/net10.0-windows10.0.26100.0/win-arm64/publish/Na
 
 ## Usage
 
-Run `NativeGuard.App.exe` as administrator. The app starts in the notification area.
+Run Native Guard as administrator. The app starts in the notification area and requests elevation at startup so it can see processes owned by other users and the system.
 
 - Left-click the tray icon to show the process list.
 - Right-click the tray icon to open the tray menu, then choose `退出`.
@@ -37,3 +37,5 @@ Run `NativeGuard.App.exe` as administrator. The app starts in the notification a
 ## MSIX package
 
 Release builds also publish a signed MSIX package for Windows ARM64. The current development package uses a self-signed certificate, so use the generated `Install.ps1` script from the release zip to trust the certificate and install the package.
+
+After installation, launch Native Guard from Start or another interactive Windows shell and accept the UAC prompt. Non-interactive commands such as `Start-Process "shell:AppsFolder\..."` cannot satisfy the elevation prompt and can fail with `0x800702E4`.
