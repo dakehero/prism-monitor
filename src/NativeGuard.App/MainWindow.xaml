@@ -27,6 +27,7 @@
         <Grid Grid.Row="1" Padding="16" RowSpacing="12">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -48,8 +49,54 @@
                     Content="刷新" />
             </Grid>
 
+            <Grid Grid.Row="1" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBox
+                    x:Name="IgnoreNameTextBox"
+                    PlaceholderText="要忽略的进程名" />
+                <Button
+                    Grid.Column="1"
+                    Click="AddIgnoredButton_Click"
+                    Content="添加忽略" />
+                <TextBlock
+                    Grid.Column="2"
+                    VerticalAlignment="Center"
+                    Text="已忽略" />
+                <ListView
+                    Grid.Column="3"
+                    MaxHeight="96"
+                    ItemsSource="{x:Bind IgnoredNames, Mode=OneWay}"
+                    SelectionMode="None">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    Text="{Binding}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <Button
+                                    Grid.Column="1"
+                                    Click="RemoveIgnoredButton_Click"
+                                    Content="移除"
+                                    Tag="{Binding}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+
             <ListView
-                Grid.Row="1"
+                Grid.Row="2"
                 ItemsSource="{x:Bind Rows, Mode=OneWay}"
                 SelectionMode="None">
                 <ListView.Header>
@@ -61,6 +108,7 @@
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="120" />
                             <ColumnDefinition Width="80" />
+                            <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="160" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="进程" />
@@ -68,7 +116,8 @@
                         <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="架构" />
                         <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="CPU 时间" />
                         <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="操作" />
-                        <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="状态" />
+                        <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="忽略" />
+                        <TextBlock Grid.Column="7" FontWeight="SemiBold" Text="状态" />
                     </Grid>
                 </ListView.Header>
                 <ListView.ItemTemplate>
@@ -80,6 +129,7 @@
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="160" />
                             </Grid.ColumnDefinitions>
@@ -101,8 +151,13 @@
                                 Click="TerminateButton_Click"
                                 Content="结束"
                                 DataContext="{Binding}" />
-                            <TextBlock
+                            <Button
                                 Grid.Column="6"
+                                Click="IgnoreProcessButton_Click"
+                                Content="忽略"
+                                DataContext="{Binding}" />
+                            <TextBlock
+                                Grid.Column="7"
                                 VerticalAlignment="Center"
                                 Text="{Binding Status}"
                                 TextTrimming="CharacterEllipsis" />

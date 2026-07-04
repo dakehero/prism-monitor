@@ -11,6 +11,10 @@ namespace NativeGuard_App;
 public partial class App : Application
 {
     private readonly NonNativeProcessService _processService = new(new Win32ProcessInfoProvider());
+    private readonly IgnoredProcessStore _ignoredProcessStore = new(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "NativeGuard",
+        "ignored-processes.json"));
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private MainWindow? _window;
@@ -52,7 +56,9 @@ public partial class App : Application
     private async Task<string> GetTooltipAsync()
     {
         IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        return TrayTooltipFormatter.FormatTopProcesses(processes, 5);
+        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+        IReadOnlyList<NonNativeProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, ignoredNames);
+        return TrayTooltipFormatter.FormatTopProcesses(visibleProcesses, 5);
     }
 
     private MainWindow EnsureMainWindow()
@@ -62,7 +68,7 @@ public partial class App : Application
             return _window;
         }
 
-        _window = new MainWindow(_processService);
+        _window = new MainWindow(_processService, _ignoredProcessStore);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) => _windowLifetime.MarkHiddenToTray();
         _window.Closed += (_, _) =>

@@ -14,6 +14,7 @@ namespace NativeGuard_App;
 public sealed partial class MainWindow : Window
 {
     private readonly NonNativeProcessService _processService;
+    private readonly IgnoredProcessStore _ignoredProcessStore;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
     private readonly DispatcherTimer _refreshTimer = new();
@@ -22,12 +23,14 @@ public sealed partial class MainWindow : Window
     private bool _allowClose;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
+    public ObservableCollection<string> IgnoredNames { get; } = [];
 
     public event EventHandler? HiddenToTray;
 
-    public MainWindow(NonNativeProcessService processService)
+    public MainWindow(NonNativeProcessService processService, IgnoredProcessStore ignoredProcessStore)
     {
         _processService = processService;
+        _ignoredProcessStore = ignoredProcessStore;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -70,8 +73,10 @@ public sealed partial class MainWindow : Window
         _isRefreshing = true;
         try
         {
+            await ReloadIgnoredNamesAsync();
             IReadOnlyList<NonNativeProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            await ApplyProcessSnapshotAsync(processes);
+            IReadOnlyList<NonNativeProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, IgnoredNames);
+            await ApplyProcessSnapshotAsync(visibleProcesses);
         }
         finally
         {
@@ -100,9 +105,51 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private async void IgnoreProcessButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: ProcessRow row })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.AddAsync(row.Name);
+        await ReloadIgnoredNamesAsync();
+        await RefreshAsync();
+    }
+
+    private async void AddIgnoredButton_Click(object sender, RoutedEventArgs e)
+    {
+        await _ignoredProcessStore.AddAsync(IgnoreNameTextBox.Text);
+        IgnoreNameTextBox.Text = string.Empty;
+        await ReloadIgnoredNamesAsync();
+        await RefreshAsync();
+    }
+
+    private async void RemoveIgnoredButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string ignoredName })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.RemoveAsync(ignoredName);
+        await ReloadIgnoredNamesAsync();
+        await RefreshAsync();
+    }
+
     private async void RefreshTimer_Tick(object? sender, object e)
     {
         await RefreshAsync();
+    }
+
+    private async Task ReloadIgnoredNamesAsync()
+    {
+        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+        IgnoredNames.Clear();
+        foreach (string ignoredName in ignoredNames)
+        {
+            IgnoredNames.Add(ignoredName);
+        }
     }
 
     private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
