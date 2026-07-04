@@ -82,7 +82,11 @@ jobs:
             throw "Microsoft.Windows.SDK.BuildTools.MSIX was not restored."
           }
 
-          Copy-Item -LiteralPath $permissions.FullName -Destination (Join-Path $msixBuild.FullName "build") -Force
+          $taskDirectories = Get-ChildItem -LiteralPath (Join-Path $msixBuild.FullName "tools") -Directory
+          foreach ($directory in $taskDirectories) {
+            Copy-Item -LiteralPath $permissions.FullName -Destination $directory.FullName -Force
+            Write-Host "Copied $($permissions.Name) to $($directory.FullName)"
+          }
 
       - name: Resolve package version
         id: version
