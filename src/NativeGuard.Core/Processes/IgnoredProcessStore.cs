@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace NativeGuard.Core.Processes;
 
@@ -81,7 +82,10 @@ public sealed class IgnoredProcessStore(string filePath)
         }
 
         await using FileStream stream = File.OpenRead(filePath);
-        string[]? names = await JsonSerializer.DeserializeAsync<string[]>(stream, cancellationToken: cancellationToken)
+        string[]? names = await JsonSerializer.DeserializeAsync(
+                stream,
+                IgnoredProcessJsonContext.Default.StringArray,
+                cancellationToken)
             .ConfigureAwait(false);
 
         return NormalizeAndSort(names ?? []);
@@ -97,7 +101,11 @@ public sealed class IgnoredProcessStore(string filePath)
 
         string[] normalizedNames = NormalizeAndSort(names).ToArray();
         await using FileStream stream = File.Create(filePath);
-        await JsonSerializer.SerializeAsync(stream, normalizedNames, cancellationToken: cancellationToken)
+        await JsonSerializer.SerializeAsync(
+                stream,
+                normalizedNames,
+                IgnoredProcessJsonContext.Default.StringArray,
+                cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -111,3 +119,6 @@ public sealed class IgnoredProcessStore(string filePath)
             .ToList();
     }
 }
+
+[JsonSerializable(typeof(string[]))]
+internal sealed partial class IgnoredProcessJsonContext : JsonSerializerContext;
