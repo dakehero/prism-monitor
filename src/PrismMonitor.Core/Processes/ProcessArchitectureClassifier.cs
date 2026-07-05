@@ -16,10 +16,28 @@ public static class ProcessArchitectureClassifier
 
     public static ProcessArchitectureInfo Classify(ushort processMachine, ushort nativeMachine, ushort? imageMachine)
     {
+        return Classify(processMachine, nativeMachine, imageMachine, imageHasArm64XMetadata: false);
+    }
+
+    public static ProcessArchitectureInfo Classify(
+        ushort processMachine,
+        ushort nativeMachine,
+        ushort? imageMachine,
+        bool imageHasArm64XMetadata)
+    {
         string displayName = GetDisplayName(processMachine);
         ushort effectiveMachine = processMachine == (ushort)Machine.Unknown && imageMachine.HasValue
             ? imageMachine.Value
             : processMachine;
+
+        if (processMachine == (ushort)Machine.Unknown
+            && imageMachine == (ushort)Machine.Amd64
+            && imageHasArm64XMetadata)
+        {
+            return new ProcessArchitectureInfo(
+                IsCompatibility: nativeMachine == (ushort)Machine.Arm64,
+                DisplayName: "ARM64EC");
+        }
 
         if (processMachine == (ushort)Machine.Unknown && imageMachine.HasValue)
         {

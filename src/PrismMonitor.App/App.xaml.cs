@@ -46,8 +46,9 @@ public partial class App : Application
 
         _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
         _toastService.Register();
-        _notificationTimer.Interval = TimeSpan.FromSeconds(10);
+        _notificationTimer.Interval = TimeSpan.FromSeconds(1);
         _notificationTimer.Tick += NotificationTimer_Tick;
+        _ = _dispatcherQueue.TryEnqueue(() => NotificationTimer_Tick(null, new object()));
         _notificationTimer.Start();
     }
 

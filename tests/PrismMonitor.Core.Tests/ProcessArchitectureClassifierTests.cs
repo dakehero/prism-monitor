@@ -85,6 +85,19 @@ public sealed class ProcessArchitectureClassifierTests
     }
 
     [TestMethod]
+    public void Classify_ReturnsArm64Ec_WhenUnknownProcessUsesX64ImageWithArm64XMetadata()
+    {
+        ProcessArchitectureInfo result = ProcessArchitectureClassifier.Classify(
+            (ushort)Machine.Unknown,
+            (ushort)Machine.Arm64,
+            (ushort)Machine.Amd64,
+            imageHasArm64XMetadata: true);
+
+        Assert.IsTrue(result.IsCompatibility);
+        Assert.AreEqual("ARM64EC", result.DisplayName);
+    }
+
+    [TestMethod]
     public void Classify_UsesArm64XImageMachine_WhenProcessMachineIsUnknown()
     {
         ProcessArchitectureInfo result = ProcessArchitectureClassifier.Classify(

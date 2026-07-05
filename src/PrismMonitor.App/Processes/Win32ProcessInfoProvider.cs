@@ -40,10 +40,14 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
             }
 
             string? executablePath = TryReadProcessImagePath(process);
-            ushort? imageMachine = processMachine == 0
-                ? TryReadImageMachine(executablePath)
+            PeImageArchitecture? imageArchitecture = processMachine == 0
+                ? TryReadImageArchitecture(executablePath)
                 : null;
-            ProcessArchitectureInfo architecture = ProcessArchitectureClassifier.Classify(processMachine, nativeMachine, imageMachine);
+            ProcessArchitectureInfo architecture = ProcessArchitectureClassifier.Classify(
+                processMachine,
+                nativeMachine,
+                imageArchitecture?.Machine,
+                imageArchitecture?.HasArm64XMetadata ?? false);
             if (!architecture.IsCompatibility)
             {
                 return null;
@@ -70,7 +74,7 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         }
     }
 
-    private static ushort? TryReadImageMachine(string? path)
+    private static PeImageArchitecture? TryReadImageArchitecture(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -81,7 +85,9 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         {
             using FileStream stream = File.OpenRead(path);
             using PEReader reader = new(stream);
-            return (ushort)reader.PEHeaders.CoffHeader.Machine;
+            return new PeImageArchitecture(
+                (ushort)reader.PEHeaders.CoffHeader.Machine,
+                PeImageArchitectureDetector.HasArm64XMetadata(reader.PEHeaders.SectionHeaders.Select(section => section.Name)));
         }
         catch (IOException)
         {
@@ -110,3 +116,5 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         return new string(buffer, 0, checked((int)length));
     }
 }
+
+internal sealed record PeImageArchitecture(ushort Machine, bool HasArm64XMetadata);
