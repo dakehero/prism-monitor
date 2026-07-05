@@ -2,10 +2,12 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Power;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Elevation;
 using PrismMonitor.App.Notifications;
+using PrismMonitor.App.Power;
 using PrismMonitor.App.Processes;
 using PrismMonitor.App.Tray;
 
@@ -22,6 +24,7 @@ public partial class App : Application
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PrismMonitor",
         "settings.json"));
+    private readonly PowerStatusProvider _powerStatusProvider = new();
     private readonly CompatibilityProcessNotifier _processNotifier = new();
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
@@ -30,6 +33,8 @@ public partial class App : Application
     private ShellTrayIcon? _trayIcon;
     private CompatibilityProcessToastService? _toastService;
     private bool _isNotificationRefreshRunning;
+    private bool _isMainWindowVisible;
+    private DateTimeOffset _lastInteractionRefresh = DateTimeOffset.MinValue;
     private readonly bool _isElevated = ElevationHelper.IsCurrentProcessElevated();
 
     public App()
@@ -45,6 +50,7 @@ public partial class App : Application
         _trayIcon = new ShellTrayIcon(
             OpenProcessWindow,
             ExitApplication,
+            RequestInteractionRefresh,
             GetTrayStatusAsync);
 
         if (!_isElevated)
@@ -52,16 +58,19 @@ public partial class App : Application
             _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
             _toastService.Register();
         }
+        _powerStatusProvider.PowerSourceChanged += PowerStatusProvider_PowerSourceChanged;
         _notificationTimer.Interval = TimeSpan.FromSeconds(1);
         _notificationTimer.Tick += NotificationTimer_Tick;
-        _ = _dispatcherQueue.TryEnqueue(() => NotificationTimer_Tick(null, new object()));
-        _notificationTimer.Start();
+        UpdateNotificationTimer();
+        RequestInteractionRefresh();
     }
 
     private void OpenProcessWindow()
     {
         MainWindow window = EnsureMainWindow();
 
+        _isMainWindowVisible = true;
+        UpdateNotificationTimer();
         window.ShowMainWindow();
         window.Activate();
         ScheduleRefreshProcessWindow(window);
@@ -71,6 +80,8 @@ public partial class App : Application
     {
         _windowLifetime.RequestExitClose();
         _notificationTimer.Stop();
+        _powerStatusProvider.PowerSourceChanged -= PowerStatusProvider_PowerSourceChanged;
+        _powerStatusProvider.Dispose();
         _window?.CloseForExit();
         _trayIcon?.Dispose();
         _toastService?.Dispose();
@@ -111,10 +122,17 @@ public partial class App : Application
             _isElevated,
             RelaunchAsAdministrator);
         _windowLifetime.MarkWindowCreated();
-        _window.HiddenToTray += (_, _) => _windowLifetime.MarkHiddenToTray();
+        _window.HiddenToTray += (_, _) =>
+        {
+            _windowLifetime.MarkHiddenToTray();
+            _isMainWindowVisible = false;
+            UpdateNotificationTimer();
+        };
         _window.Closed += (_, _) =>
         {
             _windowLifetime.MarkWindowClosed();
+            _isMainWindowVisible = false;
+            UpdateNotificationTimer();
             if (_windowLifetime.NeedsWindow)
             {
                 _window = null;
@@ -155,6 +173,42 @@ public partial class App : Application
         }
 
         return started;
+    }
+
+    private void PowerStatusProvider_PowerSourceChanged(object? sender, EventArgs e)
+    {
+        _ = _dispatcherQueue.TryEnqueue(() =>
+        {
+            UpdateNotificationTimer();
+            RequestInteractionRefresh();
+        });
+    }
+
+    private void UpdateNotificationTimer()
+    {
+        RefreshMode refreshMode = RefreshSchedulePolicy.GetRefreshMode(
+            _powerStatusProvider.GetCurrentPowerSource(),
+            _isMainWindowVisible);
+
+        if (refreshMode == RefreshMode.PeriodicBackground)
+        {
+            _notificationTimer.Start();
+            return;
+        }
+
+        _notificationTimer.Stop();
+    }
+
+    private void RequestInteractionRefresh()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (now - _lastInteractionRefresh < TimeSpan.FromSeconds(2))
+        {
+            return;
+        }
+
+        _lastInteractionRefresh = now;
+        _ = _dispatcherQueue.TryEnqueue(() => NotificationTimer_Tick(null, new object()));
     }
 
     private async void NotificationTimer_Tick(object? sender, object e)

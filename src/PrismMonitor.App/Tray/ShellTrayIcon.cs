@@ -16,15 +16,21 @@ internal sealed class ShellTrayIcon : IDisposable
     private IntPtr _currentIcon;
     private readonly Action _openRequested;
     private readonly Action _exitRequested;
+    private readonly Action _refreshRequested;
     private readonly Func<Task<TrayStatus>> _statusProvider;
     private TrayStatus _cachedStatus = new("Prism Monitor", [], 0);
     private bool _disposed;
     private int _displayedProcessCount = -1;
 
-    public ShellTrayIcon(Action openRequested, Action exitRequested, Func<Task<TrayStatus>> statusProvider)
+    public ShellTrayIcon(
+        Action openRequested,
+        Action exitRequested,
+        Action refreshRequested,
+        Func<Task<TrayStatus>> statusProvider)
     {
         _openRequested = openRequested;
         _exitRequested = exitRequested;
+        _refreshRequested = refreshRequested;
         _statusProvider = statusProvider;
         _windowProc = WndProc;
 
@@ -154,10 +160,12 @@ internal sealed class ShellTrayIcon : IDisposable
                 else if (trayMessage == ShellNotifyIconInterop.WindowMessageRightButtonUp)
                 {
                     ShowContextMenu();
+                    _refreshRequested();
                 }
                 else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
                 {
                     AddOrUpdate(_cachedStatus.Tooltip);
+                    _refreshRequested();
                 }
             }
             catch (Exception ex)
