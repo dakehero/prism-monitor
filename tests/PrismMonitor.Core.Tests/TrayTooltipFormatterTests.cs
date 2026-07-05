@@ -14,6 +14,28 @@ public sealed class TrayTooltipFormatterTests
     }
 
     [TestMethod]
+    public void FormatSummary_ReturnsNoProcessesMessage_WhenNoProcessesExist()
+    {
+        string result = TrayTooltipFormatter.FormatSummary([]);
+
+        Assert.AreEqual("No compatibility-mode processes", result);
+    }
+
+    [TestMethod]
+    public void FormatSummary_ReturnsProcessCount_WhenProcessesExist()
+    {
+        CompatibilityProcessInfo[] processes =
+        [
+            new("chrome", 1, "x64", TimeSpan.Zero),
+            new("AppleMusic", 2, "ARM64EC", TimeSpan.Zero)
+        ];
+
+        string result = TrayTooltipFormatter.FormatSummary(processes);
+
+        Assert.AreEqual("2 compatibility-mode processes", result);
+    }
+
+    [TestMethod]
     public void FormatTopProcesses_SortsByCpuTimeDescending_AndLimitsToTopN()
     {
         CompatibilityProcessInfo[] processes =

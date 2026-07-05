@@ -42,7 +42,7 @@ public partial class App : Application
         _trayIcon = new ShellTrayIcon(
             OpenProcessWindow,
             ExitApplication,
-            GetTooltipAsync);
+            GetTrayStatusAsync);
 
         _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
         _toastService.Register();
@@ -71,7 +71,7 @@ public partial class App : Application
         Exit();
     }
 
-    private async Task<string> GetTooltipAsync()
+    private async Task<TrayStatus> GetTrayStatusAsync()
     {
         IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
         IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
@@ -79,7 +79,11 @@ public partial class App : Application
         IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
             IgnoredProcessFilter.Filter(processes, ignoredNames),
             settings);
-        return TrayTooltipFormatter.FormatTopProcesses(visibleProcesses, 5);
+        string topText = TrayTooltipFormatter.FormatTopProcesses(visibleProcesses, 3);
+        return new TrayStatus(
+            TrayTooltipFormatter.FormatSummary(visibleProcesses),
+            topText.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries),
+            visibleProcesses.Count);
     }
 
     private MainWindow EnsureMainWindow()

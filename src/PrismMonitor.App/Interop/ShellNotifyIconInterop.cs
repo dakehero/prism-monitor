@@ -21,6 +21,8 @@ internal static class ShellNotifyIconInterop
     internal const uint WindowMessageRightButtonUp = 0x0205;
     internal const uint WindowMessageNull = 0x0000;
     internal const uint MenuString = 0x00000000;
+    internal const uint MenuDisabled = 0x00000002;
+    internal const uint MenuSeparator = 0x00000800;
     internal const uint TrackPopupMenuReturnCommand = 0x0100;
     internal const uint TrackPopupMenuRightButton = 0x0002;
     internal const uint TrackPopupMenuLeftAlign = 0x0000;

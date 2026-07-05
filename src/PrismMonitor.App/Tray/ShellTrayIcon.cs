@@ -12,17 +12,19 @@ internal sealed class ShellTrayIcon : IDisposable
     private const uint CallbackMessage = ShellNotifyIconInterop.WindowMessageApp + 1;
     private readonly ShellNotifyIconInterop.WindowProc _windowProc;
     private readonly IntPtr _messageWindow;
-    private readonly IntPtr _icon;
+    private readonly IntPtr _baseIcon;
+    private IntPtr _currentIcon;
     private readonly Action _openRequested;
     private readonly Action _exitRequested;
-    private readonly Func<Task<string>> _tooltipProvider;
+    private readonly Func<Task<TrayStatus>> _statusProvider;
     private bool _disposed;
+    private int _displayedProcessCount = -1;
 
-    public ShellTrayIcon(Action openRequested, Action exitRequested, Func<Task<string>> tooltipProvider)
+    public ShellTrayIcon(Action openRequested, Action exitRequested, Func<Task<TrayStatus>> statusProvider)
     {
         _openRequested = openRequested;
         _exitRequested = exitRequested;
-        _tooltipProvider = tooltipProvider;
+        _statusProvider = statusProvider;
         _windowProc = WndProc;
 
         const string className = "PrismMonitorTrayWindow";
@@ -48,13 +50,14 @@ internal sealed class ShellTrayIcon : IDisposable
             IntPtr.Zero);
 
         string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico");
-        _icon = ShellNotifyIconInterop.LoadImage(
+        _baseIcon = ShellNotifyIconInterop.LoadImage(
             IntPtr.Zero,
             iconPath,
             ShellNotifyIconInterop.ImageIcon,
             0,
             0,
             ShellNotifyIconInterop.LoadFromFile | ShellNotifyIconInterop.LoadDefaultSize);
+        _currentIcon = _baseIcon;
 
         AddOrUpdate("Prism Monitor");
     }
@@ -63,8 +66,9 @@ internal sealed class ShellTrayIcon : IDisposable
     {
         try
         {
-            string tooltip = await _tooltipProvider().ConfigureAwait(false);
-            AddOrUpdate(tooltip);
+            TrayStatus status = await _statusProvider().ConfigureAwait(false);
+            UpdateIcon(status.ProcessCount);
+            AddOrUpdate(status.Tooltip);
         }
         catch (Exception ex)
         {
@@ -106,9 +110,14 @@ internal sealed class ShellTrayIcon : IDisposable
         NotifyIconData data = CreateData("Prism Monitor");
         _ = ShellNotifyIconInterop.ShellNotifyIcon(ShellNotifyIconInterop.NotifyIconDelete, ref data);
 
-        if (_icon != IntPtr.Zero)
+        if (_currentIcon != IntPtr.Zero && _currentIcon != _baseIcon)
         {
-            _ = ShellNotifyIconInterop.DestroyIcon(_icon);
+            _ = ShellNotifyIconInterop.DestroyIcon(_currentIcon);
+        }
+
+        if (_baseIcon != IntPtr.Zero)
+        {
+            _ = ShellNotifyIconInterop.DestroyIcon(_baseIcon);
         }
 
         if (_messageWindow != IntPtr.Zero)
@@ -163,6 +172,21 @@ internal sealed class ShellTrayIcon : IDisposable
 
         try
         {
+            TrayStatus? status = TryReadStatusForMenu();
+            if (status is not null && status.TopProcesses.Count > 0)
+            {
+                foreach (string process in status.TopProcesses)
+                {
+                    _ = ShellNotifyIconInterop.AppendMenu(
+                        menu,
+                        ShellNotifyIconInterop.MenuString | ShellNotifyIconInterop.MenuDisabled,
+                        UIntPtr.Zero,
+                        process);
+                }
+
+                _ = ShellNotifyIconInterop.AppendMenu(menu, ShellNotifyIconInterop.MenuSeparator, UIntPtr.Zero, string.Empty);
+            }
+
             _ = ShellNotifyIconInterop.AppendMenu(
                 menu,
                 ShellNotifyIconInterop.MenuString,
@@ -225,9 +249,39 @@ internal sealed class ShellTrayIcon : IDisposable
             Id = IconId,
             Flags = ShellNotifyIconInterop.NotifyIconMessage | ShellNotifyIconInterop.NotifyIconIcon | ShellNotifyIconInterop.NotifyIconTip,
             CallbackMessage = CallbackMessage,
-            Icon = _icon,
+            Icon = _currentIcon,
             Tip = TruncateTooltip(tooltip)
         };
+    }
+
+    private TrayStatus? TryReadStatusForMenu()
+    {
+        try
+        {
+            return _statusProvider().GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex);
+            return null;
+        }
+    }
+
+    private void UpdateIcon(int processCount)
+    {
+        if (_displayedProcessCount == processCount)
+        {
+            return;
+        }
+
+        IntPtr previousIcon = _currentIcon;
+        _currentIcon = TrayIconBadgeFactory.CreateBadgedIcon(_baseIcon, processCount);
+        _displayedProcessCount = processCount;
+
+        if (previousIcon != IntPtr.Zero && previousIcon != _baseIcon)
+        {
+            _ = ShellNotifyIconInterop.DestroyIcon(previousIcon);
+        }
     }
 
     private static string TruncateTooltip(string tooltip)

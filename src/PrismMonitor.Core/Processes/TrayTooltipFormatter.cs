@@ -2,6 +2,14 @@ namespace PrismMonitor.Core.Processes;
 
 public static class TrayTooltipFormatter
 {
+    public static string FormatSummary(IEnumerable<CompatibilityProcessInfo> processes)
+    {
+        int count = processes.Count();
+        return count == 0
+            ? "No compatibility-mode processes"
+            : CultureInvariant($"{count} compatibility-mode {(count == 1 ? "process" : "processes")}");
+    }
+
     public static string FormatTopProcesses(IEnumerable<CompatibilityProcessInfo> processes, int topN)
     {
         List<CompatibilityProcessInfo> topProcesses = processes
