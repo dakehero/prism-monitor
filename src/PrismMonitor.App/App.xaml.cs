@@ -2,6 +2,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Processes;
@@ -16,6 +17,10 @@ public partial class App : Application
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PrismMonitor",
         "ignored-processes.json"));
+    private readonly MonitoringSettingsStore _settingsStore = new(Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PrismMonitor",
+        "settings.json"));
     private readonly CompatibilityProcessNotifier _processNotifier = new();
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
@@ -69,7 +74,10 @@ public partial class App : Application
     {
         IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
         IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-        IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, ignoredNames);
+        MonitoringSettings settings = await _settingsStore.GetAsync();
+        IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
+            IgnoredProcessFilter.Filter(processes, ignoredNames),
+            settings);
         return TrayTooltipFormatter.FormatTopProcesses(visibleProcesses, 5);
     }
 
@@ -80,7 +88,7 @@ public partial class App : Application
             return _window;
         }
 
-        _window = new MainWindow(_processService, _ignoredProcessStore);
+        _window = new MainWindow(_processService, _ignoredProcessStore, _settingsStore);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) => _windowLifetime.MarkHiddenToTray();
         _window.Closed += (_, _) =>
@@ -123,8 +131,11 @@ public partial class App : Application
         {
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
             IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, ignoredNames);
-            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(visibleProcesses);
+            MonitoringSettings settings = await _settingsStore.GetAsync();
+            IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
+                IgnoredProcessFilter.Filter(processes, ignoredNames),
+                settings);
+            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(notifiableProcesses);
 
             foreach (CompatibilityProcessInfo process in newProcesses)
             {

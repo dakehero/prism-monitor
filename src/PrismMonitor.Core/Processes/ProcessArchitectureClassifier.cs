@@ -7,6 +7,7 @@ public sealed record ProcessArchitectureInfo(bool IsCompatibility, string Displa
 public static class ProcessArchitectureClassifier
 {
     public const ushort Arm64EcMachine = 0xa641;
+    public const ushort Arm64XMachine = 0xa64e;
 
     public static ProcessArchitectureInfo Classify(ushort processMachine, ushort nativeMachine)
     {
@@ -29,7 +30,8 @@ public static class ProcessArchitectureClassifier
         bool isCompatibility = isArm64Host
             && (effectiveMachine == (ushort)Machine.Amd64
                 || effectiveMachine == (ushort)Machine.I386
-                || effectiveMachine == Arm64EcMachine);
+                || effectiveMachine == Arm64EcMachine
+                || effectiveMachine == Arm64XMachine);
 
         return new ProcessArchitectureInfo(isCompatibility, displayName);
     }
@@ -42,6 +44,7 @@ public static class ProcessArchitectureClassifier
             (ushort)Machine.Amd64 => "x64",
             (ushort)Machine.Arm64 => "ARM64",
             Arm64EcMachine => "ARM64EC",
+            Arm64XMachine => "ARM64X",
             _ => "Unknown"
         };
     }

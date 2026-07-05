@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml;
 using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Settings;
 using PrismMonitor.App.Processes;
 using Windows.Graphics;
 
@@ -15,22 +16,34 @@ public sealed partial class MainWindow : Window
 {
     private readonly CompatibilityProcessService _processService;
     private readonly IgnoredProcessStore _ignoredProcessStore;
+    private readonly MonitoringSettingsStore _settingsStore;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
     private readonly DispatcherTimer _refreshTimer = new();
     private readonly SizeInt32 _windowSize = new(1040, 620);
     private bool _isRefreshing;
     private bool _allowClose;
+    private bool _isLoadingSettings;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
     public ObservableCollection<string> IgnoredNames { get; } = [];
+    public ObservableCollection<NotificationLevelOption> NotificationLevelOptions { get; } =
+    [
+        new(NotificationLevel.X86Only, "x86 only"),
+        new(NotificationLevel.X86AndX64, "x86 + x64"),
+        new(NotificationLevel.X86X64AndArm64Ec, "x86 + x64 + ARM64EC")
+    ];
 
     public event EventHandler? HiddenToTray;
 
-    public MainWindow(CompatibilityProcessService processService, IgnoredProcessStore ignoredProcessStore)
+    public MainWindow(
+        CompatibilityProcessService processService,
+        IgnoredProcessStore ignoredProcessStore,
+        MonitoringSettingsStore settingsStore)
     {
         _processService = processService;
         _ignoredProcessStore = ignoredProcessStore;
+        _settingsStore = settingsStore;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -75,7 +88,10 @@ public sealed partial class MainWindow : Window
         {
             await ReloadIgnoredNamesAsync();
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = IgnoredProcessFilter.Filter(processes, IgnoredNames);
+            MonitoringSettings settings = await _settingsStore.GetAsync();
+            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
+                IgnoredProcessFilter.Filter(processes, IgnoredNames),
+                settings);
             await ApplyProcessSnapshotAsync(visibleProcesses);
         }
         finally
@@ -125,6 +141,21 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
+    private async void Root_Loaded(object sender, RoutedEventArgs e)
+    {
+        await LoadSettingsControlsAsync();
+    }
+
+    private async void IncludeArm64EcToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        await SaveSettingsFromControlsAsync();
+    }
+
+    private async void NotificationLevelComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        await SaveSettingsFromControlsAsync();
+    }
+
     private async void RemoveIgnoredButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string ignoredName })
@@ -150,6 +181,37 @@ public sealed partial class MainWindow : Window
         {
             IgnoredNames.Add(ignoredName);
         }
+    }
+
+    private async Task LoadSettingsControlsAsync()
+    {
+        _isLoadingSettings = true;
+        try
+        {
+            MonitoringSettings settings = await _settingsStore.GetAsync();
+            IncludeArm64EcToggle.IsOn = settings.IncludeArm64EcProcesses;
+            NotificationLevelComboBox.SelectedItem = NotificationLevelOptions.FirstOrDefault(
+                option => option.Level == settings.NotificationLevel);
+        }
+        finally
+        {
+            _isLoadingSettings = false;
+        }
+    }
+
+    private async Task SaveSettingsFromControlsAsync()
+    {
+        if (_isLoadingSettings)
+        {
+            return;
+        }
+
+        NotificationLevel level = NotificationLevelComboBox.SelectedItem is NotificationLevelOption option
+            ? option.Level
+            : NotificationLevel.X86X64AndArm64Ec;
+
+        await _settingsStore.SaveAsync(new MonitoringSettings(IncludeArm64EcToggle.IsOn, level));
+        await RefreshAsync();
     }
 
     private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -291,4 +353,11 @@ public sealed class ProcessRow : INotifyPropertyChanged
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+}
+
+public sealed class NotificationLevelOption(NotificationLevel level, string displayName)
+{
+    public NotificationLevel Level { get; set; } = level;
+
+    public string DisplayName { get; set; } = displayName;
 }
