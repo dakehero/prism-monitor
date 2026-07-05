@@ -157,7 +157,7 @@ internal sealed class ShellTrayIcon : IDisposable
                 }
                 else if (trayMessage == ShellNotifyIconInterop.WindowMessageMouseMove)
                 {
-                    _ = RefreshTooltipAsync();
+                    AddOrUpdate(_cachedStatus.Tooltip);
                 }
             }
             catch (Exception ex)

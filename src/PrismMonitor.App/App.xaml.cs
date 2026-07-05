@@ -28,6 +28,7 @@ public partial class App : Application
     private MainWindow? _window;
     private ShellTrayIcon? _trayIcon;
     private CompatibilityProcessToastService? _toastService;
+    private bool _isNotificationRefreshRunning;
 
     public App()
     {
@@ -137,20 +138,18 @@ public partial class App : Application
 
     private async void NotificationTimer_Tick(object? sender, object e)
     {
+        if (_isNotificationRefreshRunning)
+        {
+            return;
+        }
+
+        _isNotificationRefreshRunning = true;
         try
         {
-            IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-            MonitoringSettings settings = await _settingsStore.GetAsync();
-            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-                IgnoredProcessFilter.Filter(processes, ignoredNames),
-                settings);
-            _trayIcon?.UpdateStatus(CreateTrayStatus(visibleProcesses));
+            MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
 
-            IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
-                visibleProcesses,
-                settings);
-            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(notifiableProcesses);
+            _trayIcon?.UpdateStatus(CreateTrayStatus(snapshot.VisibleProcesses));
+            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(snapshot.NotifiableProcesses);
 
             foreach (CompatibilityProcessInfo process in newProcesses)
             {
@@ -161,5 +160,28 @@ public partial class App : Application
         {
             // Toast monitoring is best-effort and must not terminate the tray app.
         }
+        finally
+        {
+            _isNotificationRefreshRunning = false;
+        }
+    }
+
+    private async Task<MonitoringSnapshot> ReadMonitoringSnapshotAsync()
+    {
+        IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
+        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+        MonitoringSettings settings = await _settingsStore.GetAsync();
+        IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
+            IgnoredProcessFilter.Filter(processes, ignoredNames),
+            settings);
+        IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
+            visibleProcesses,
+            settings);
+
+        return new MonitoringSnapshot(visibleProcesses, notifiableProcesses);
     }
 }
+
+internal sealed record MonitoringSnapshot(
+    IReadOnlyList<CompatibilityProcessInfo> VisibleProcesses,
+    IReadOnlyList<CompatibilityProcessInfo> NotifiableProcesses);
