@@ -184,6 +184,11 @@ jobs:
             -FilePath (Join-Path $packageDir.FullName "PrismMonitor.LocalTestRoot.cer") |
             Out-Null
 
+          Copy-Item `
+            -LiteralPath scripts/install-local-msix.ps1 `
+            -Destination (Join-Path $packageDir.FullName "Install.ps1") `
+            -Force
+
       - name: Verify package payload
         shell: pwsh
         run: |

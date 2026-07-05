@@ -29,13 +29,20 @@ function Import-SigningCertificate([string]$Path) {
 }
 
 $scriptPath = $PSCommandPath
-$repoRoot = Split-Path -Parent (Split-Path -Parent $scriptPath)
+$scriptDirectory = Split-Path -Parent $scriptPath
 
 if ([string]::IsNullOrWhiteSpace($PackageDir)) {
-    $localMsixRoot = Join-Path $repoRoot "artifacts\local-msix"
-    $PackageDir = Get-ChildItem -LiteralPath $localMsixRoot -Directory |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
+    $scriptDirectoryPackage = Get-ChildItem -LiteralPath $scriptDirectory -Filter *.msix -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($scriptDirectoryPackage) {
+        $PackageDir = $scriptDirectory
+    } else {
+        $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptPath)
+        $localMsixRoot = Join-Path $repoRoot "artifacts\local-msix"
+        $PackageDir = Get-ChildItem -LiteralPath $localMsixRoot -Directory |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
 }
 
 $PackageDir = (Resolve-Path -LiteralPath $PackageDir).Path
