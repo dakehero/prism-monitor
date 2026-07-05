@@ -28,7 +28,6 @@
             x:Name="RootNavigationView"
             Grid.Row="1"
             IsBackButtonVisible="Collapsed"
-            IsSettingsVisible="False"
             Loaded="Root_Loaded"
             PaneDisplayMode="LeftCompact"
             SelectionChanged="RootNavigationView_SelectionChanged">
@@ -38,14 +37,14 @@
                     IsSelected="True"
                     Tag="Processes">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="List" />
+                        <SymbolIcon Symbol="ViewAll" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
-                    Content="Settings"
-                    Tag="Settings">
+                    Content="Filters"
+                    Tag="Filters">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Setting" />
+                        <SymbolIcon Symbol="Filter" />
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -126,7 +125,7 @@
                 </Grid>
 
                 <Grid
-                    x:Name="SettingsPage"
+                    x:Name="FiltersPage"
                     RowSpacing="16"
                     Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -135,25 +134,7 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid ColumnSpacing="16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="240" />
-                            </Grid.ColumnDefinitions>
-                            <ToggleSwitch x:Name="IncludeArm64EcToggle" Header="Include ARM64EC / ARM64X" Toggled="IncludeArm64EcToggle_Toggled" />
-                            <ComboBox
-                                x:Name="NotificationLevelComboBox"
-                                Grid.Column="1"
-                                Header="Notify for"
-                                ItemsSource="{x:Bind NotificationLevelOptions, Mode=OneWay}"
-                                SelectionChanged="NotificationLevelComboBox_SelectionChanged">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="local:NotificationLevelOption">
-                                        <TextBlock Text="{x:Bind DisplayName, Mode=OneTime}" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-                        </Grid>
+                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Ignored apps" />
 
                         <Grid Grid.Row="1" ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
@@ -183,6 +164,38 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
+                </Grid>
+
+                <Grid
+                    x:Name="SettingsPage"
+                    RowSpacing="16"
+                    Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock FontSize="18" FontWeight="SemiBold" Text="Settings" />
+
+                    <Grid Grid.Row="1" ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="240" />
+                        </Grid.ColumnDefinitions>
+                        <ToggleSwitch x:Name="IncludeArm64EcToggle" Header="Include ARM64EC / ARM64X" Toggled="IncludeArm64EcToggle_Toggled" />
+                        <ComboBox
+                            x:Name="NotificationLevelComboBox"
+                            Grid.Column="1"
+                            Header="Notify for"
+                            ItemsSource="{x:Bind NotificationLevelOptions, Mode=OneWay}"
+                            SelectionChanged="NotificationLevelComboBox_SelectionChanged">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="local:NotificationLevelOption">
+                                    <TextBlock Text="{x:Bind DisplayName, Mode=OneTime}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
                 </Grid>
             </Grid>
         </NavigationView>

@@ -167,11 +167,19 @@ public sealed partial class MainWindow : Window
 
     private void RootNavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        string selectedTag = args.SelectedItemContainer?.Tag as string ?? "Processes";
-        bool showSettings = string.Equals(selectedTag, "Settings", StringComparison.Ordinal);
+        string selectedTag = args.IsSettingsSelected
+            ? "Settings"
+            : args.SelectedItemContainer?.Tag as string ?? "Processes";
 
-        ProcessesPage.Visibility = showSettings ? Visibility.Collapsed : Visibility.Visible;
-        SettingsPage.Visibility = showSettings ? Visibility.Visible : Visibility.Collapsed;
+        ProcessesPage.Visibility = string.Equals(selectedTag, "Processes", StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        FiltersPage.Visibility = string.Equals(selectedTag, "Filters", StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        SettingsPage.Visibility = string.Equals(selectedTag, "Settings", StringComparison.Ordinal)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private async void RefreshTimer_Tick(object? sender, object e)
