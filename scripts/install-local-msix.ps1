@@ -17,15 +17,15 @@ function Quote-Argument([string]$Value) {
 }
 
 function Test-CertificateTrusted([string]$Thumbprint) {
-    $trustedPeople = Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue |
+    $trustedRoot = Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
         Where-Object Thumbprint -eq $Thumbprint
 
-    return $null -ne $trustedPeople
+    return $null -ne $trustedRoot
 }
 
 function Import-SigningCertificate([string]$Path) {
     Write-Host "Trusting certificate: $Path"
-    Import-Certificate -FilePath $Path -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
+    Import-Certificate -FilePath $Path -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
 }
 
 $scriptPath = $PSCommandPath
@@ -39,7 +39,10 @@ if ([string]::IsNullOrWhiteSpace($PackageDir)) {
 }
 
 $PackageDir = (Resolve-Path -LiteralPath $PackageDir).Path
-$cert = Get-ChildItem -LiteralPath $PackageDir -Filter *.cer | Select-Object -First 1
+$cert = Get-ChildItem -LiteralPath $PackageDir -Filter *Root*.cer | Select-Object -First 1
+if (-not $cert) {
+    $cert = Get-ChildItem -LiteralPath $PackageDir -Filter *.cer | Select-Object -First 1
+}
 $msix = Get-ChildItem -LiteralPath $PackageDir -Filter *.msix | Select-Object -First 1
 
 if (-not $cert) {

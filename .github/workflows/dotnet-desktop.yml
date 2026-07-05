@@ -129,18 +129,31 @@ jobs:
         id: cert
         shell: pwsh
         run: |
+          $root = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=Prism Monitor Local Test Root" `
+            -KeyUsage CertSign, CRLSign, DigitalSignature `
+            -KeyExportPolicy Exportable `
+            -FriendlyName "Prism Monitor Local Test Root" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.19={critical}{text}ca=1&pathlength=0") `
+            -NotAfter (Get-Date).AddYears(3)
+
           $cert = New-SelfSignedCertificate `
             -Type Custom `
             -Subject $env:PACKAGE_SUBJECT `
+            -Signer $root `
             -KeyUsage DigitalSignature `
+            -KeyExportPolicy Exportable `
             -FriendlyName "Prism Monitor MSIX Signing" `
             -CertStoreLocation "Cert:\CurrentUser\My" `
             -TextExtension @(
-              "2.5.29.19={text}",
+              "2.5.29.19={critical}{text}ca=0",
               "2.5.29.37={text}1.3.6.1.5.5.7.3.3"
             ) `
             -NotAfter (Get-Date).AddYears(3)
 
+          "root_thumbprint=$($root.Thumbprint)" >> $env:GITHUB_OUTPUT
           "thumbprint=$($cert.Thumbprint)" >> $env:GITHUB_OUTPUT
 
       - name: Publish signed MSIX
@@ -157,6 +170,19 @@ jobs:
             -p:AppxBundle=Never `
             -p:UapAppxPackageBuildMode=SideloadOnly `
             -p:AppxPackageDir=artifacts/msix/
+
+      - name: Export local test root certificate
+        shell: pwsh
+        run: |
+          $packageDir = Get-ChildItem -Path src/PrismMonitor.App/artifacts/msix -Directory | Select-Object -First 1
+          if (-not $packageDir) {
+            throw "MSIX package directory was not produced."
+          }
+
+          Export-Certificate `
+            -Cert "Cert:\CurrentUser\My\${{ steps.cert.outputs.root_thumbprint }}" `
+            -FilePath (Join-Path $packageDir.FullName "PrismMonitor.LocalTestRoot.cer") |
+            Out-Null
 
       - name: Verify package payload
         shell: pwsh
