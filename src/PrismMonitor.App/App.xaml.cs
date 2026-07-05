@@ -4,6 +4,7 @@ using Microsoft.Windows.AppLifecycle;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
+using PrismMonitor.App.Elevation;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Processes;
 using PrismMonitor.App.Tray;
@@ -29,6 +30,7 @@ public partial class App : Application
     private ShellTrayIcon? _trayIcon;
     private CompatibilityProcessToastService? _toastService;
     private bool _isNotificationRefreshRunning;
+    private readonly bool _isElevated = ElevationHelper.IsCurrentProcessElevated();
 
     public App()
     {
@@ -45,8 +47,11 @@ public partial class App : Application
             ExitApplication,
             GetTrayStatusAsync);
 
-        _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
-        _toastService.Register();
+        if (!_isElevated)
+        {
+            _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
+            _toastService.Register();
+        }
         _notificationTimer.Interval = TimeSpan.FromSeconds(1);
         _notificationTimer.Tick += NotificationTimer_Tick;
         _ = _dispatcherQueue.TryEnqueue(() => NotificationTimer_Tick(null, new object()));
@@ -99,7 +104,12 @@ public partial class App : Application
             return _window;
         }
 
-        _window = new MainWindow(_processService, _ignoredProcessStore, _settingsStore);
+        _window = new MainWindow(
+            _processService,
+            _ignoredProcessStore,
+            _settingsStore,
+            _isElevated,
+            RelaunchAsAdministrator);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) => _windowLifetime.MarkHiddenToTray();
         _window.Closed += (_, _) =>
@@ -134,6 +144,17 @@ public partial class App : Application
     private void CurrentInstance_Activated(object? sender, AppActivationArguments args)
     {
         _ = _dispatcherQueue.TryEnqueue(OpenProcessWindow);
+    }
+
+    private bool RelaunchAsAdministrator()
+    {
+        bool started = ElevationHelper.TryRelaunchCurrentProcessAsAdministrator();
+        if (started)
+        {
+            ExitApplication();
+        }
+
+        return started;
     }
 
     private async void NotificationTimer_Tick(object? sender, object e)
