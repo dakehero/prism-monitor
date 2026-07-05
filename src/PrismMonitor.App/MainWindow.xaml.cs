@@ -89,25 +89,25 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
-    private async void TerminateButton_Click(object sender, RoutedEventArgs e)
+    private async void TerminateMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: ProcessRow row })
+        if (sender is not MenuFlyoutItem { Tag: ProcessRow row })
         {
             return;
         }
 
         ProcessTerminationResult result = _processTerminator.Terminate(row.ProcessId);
-        row.Status = result.Message;
-
-        if (result.Succeeded)
+        if (!result.Succeeded)
         {
-            await RefreshAsync();
+            return;
         }
+
+        await RefreshAsync();
     }
 
-    private async void IgnoreProcessButton_Click(object sender, RoutedEventArgs e)
+    private async void IgnoreProcessMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { DataContext: ProcessRow row })
+        if (sender is not MenuFlyoutItem { Tag: ProcessRow row })
         {
             return;
         }
@@ -235,7 +235,6 @@ public sealed class ProcessRow : INotifyPropertyChanged
     private string _architecture;
     private string _cpuTime;
     private ImageSource _icon;
-    private string _status = string.Empty;
 
     public ProcessRow(string name, int processId, string architecture, string cpuTime, ImageSource icon)
     {
@@ -272,12 +271,6 @@ public sealed class ProcessRow : INotifyPropertyChanged
     {
         get => _icon;
         private set => SetProperty(ref _icon, value);
-    }
-
-    public string Status
-    {
-        get => _status;
-        set => SetProperty(ref _status, value);
     }
 
     public void Update(string name, string architecture, string cpuTime, ImageSource icon)

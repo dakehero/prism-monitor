@@ -95,7 +95,18 @@ if ($TrustOnly) {
 }
 
 Write-Host "Installing package: $($msix.FullName)"
-Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
+try {
+    Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
+} catch {
+    $existingPackage = Get-AppxPackage -Name dakehero.PrismMonitor
+    if (-not $existingPackage) {
+        throw
+    }
+
+    Write-Host "Removing existing package before reinstalling: $($existingPackage.PackageFullName)"
+    Remove-AppxPackage -Package $existingPackage.PackageFullName
+    Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
+}
 
 $package = Get-AppxPackage -Name dakehero.PrismMonitor
 if (-not $package) {

@@ -74,7 +74,7 @@
                     ItemsSource="{x:Bind IgnoredNames, Mode=OneWay}"
                     SelectionMode="None">
                     <ListView.ItemTemplate>
-                        <DataTemplate>
+                        <DataTemplate x:DataType="x:String">
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -82,13 +82,13 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock
                                     VerticalAlignment="Center"
-                                    Text="{Binding}"
+                                    Text="{x:Bind}"
                                     TextTrimming="CharacterEllipsis" />
                                 <Button
                                     Grid.Column="1"
                                     Click="RemoveIgnoredButton_Click"
                                     Content="Remove"
-                                    Tag="{Binding}" />
+                                    Tag="{x:Bind}" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
@@ -107,21 +107,17 @@
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="120" />
-                            <ColumnDefinition Width="80" />
-                            <ColumnDefinition Width="80" />
-                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="120" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Process" />
                         <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="PID" />
                         <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Arch" />
                         <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="CPU time" />
-                        <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="Action" />
-                        <TextBlock Grid.Column="6" FontWeight="SemiBold" Text="Ignore" />
-                        <TextBlock Grid.Column="7" FontWeight="SemiBold" Text="Status" />
+                        <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="Actions" />
                     </Grid>
                 </ListView.Header>
                 <ListView.ItemTemplate>
-                    <DataTemplate>
+                    <DataTemplate x:DataType="local:ProcessRow">
                         <Grid Padding="8,4" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="32" />
@@ -129,38 +125,38 @@
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="80" />
                                 <ColumnDefinition Width="120" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="160" />
+                                <ColumnDefinition Width="120" />
                             </Grid.ColumnDefinitions>
                             <Image
                                 Width="20"
                                 Height="20"
                                 VerticalAlignment="Center"
-                                Source="{Binding Icon}" />
+                                Source="{x:Bind Icon, Mode=OneWay}" />
                             <TextBlock
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
-                                Text="{Binding Name}"
+                                Text="{x:Bind Name, Mode=OneWay}"
                                 TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding ProcessId}" />
-                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Architecture}" />
-                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding CpuTime}" />
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" />
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" />
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" />
                             <Button
                                 Grid.Column="5"
-                                Click="TerminateButton_Click"
-                                Content="End"
-                                DataContext="{Binding}" />
-                            <Button
-                                Grid.Column="6"
-                                Click="IgnoreProcessButton_Click"
-                                Content="Ignore"
-                                DataContext="{Binding}" />
-                            <TextBlock
-                                Grid.Column="7"
                                 VerticalAlignment="Center"
-                                Text="{Binding Status}"
-                                TextTrimming="CharacterEllipsis" />
+                                Content="Actions">
+                                <Button.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem
+                                            Click="TerminateMenuItem_Click"
+                                            Tag="{x:Bind}"
+                                            Text="End process" />
+                                        <MenuFlyoutItem
+                                            Click="IgnoreProcessMenuItem_Click"
+                                            Tag="{x:Bind}"
+                                            Text="Ignore process" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ListView.ItemTemplate>
