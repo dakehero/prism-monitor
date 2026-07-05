@@ -66,9 +66,14 @@
                     x:Name="NotificationLevelComboBox"
                     Grid.Column="1"
                     Header="Notify for"
-                    DisplayMemberPath="DisplayName"
                     ItemsSource="{x:Bind NotificationLevelOptions, Mode=OneWay}"
-                    SelectionChanged="NotificationLevelComboBox_SelectionChanged" />
+                    SelectionChanged="NotificationLevelComboBox_SelectionChanged">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:NotificationLevelOption">
+                            <TextBlock Text="{x:Bind DisplayName, Mode=OneTime}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </Grid>
 
             <Grid Grid.Row="2" ColumnSpacing="8">
