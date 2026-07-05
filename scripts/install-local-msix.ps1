@@ -17,17 +17,14 @@ function Quote-Argument([string]$Value) {
 }
 
 function Test-CertificateTrusted([string]$Thumbprint) {
-    $root = Get-ChildItem Cert:\LocalMachine\Root -ErrorAction SilentlyContinue |
-        Where-Object Thumbprint -eq $Thumbprint
     $trustedPeople = Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue |
         Where-Object Thumbprint -eq $Thumbprint
 
-    return $null -ne $root -and $null -ne $trustedPeople
+    return $null -ne $trustedPeople
 }
 
 function Import-SigningCertificate([string]$Path) {
     Write-Host "Trusting certificate: $Path"
-    Import-Certificate -FilePath $Path -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
     Import-Certificate -FilePath $Path -CertStoreLocation Cert:\LocalMachine\TrustedPeople | Out-Null
 }
 
