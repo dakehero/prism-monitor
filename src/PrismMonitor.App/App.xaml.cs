@@ -79,6 +79,11 @@ public partial class App : Application
         IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
             IgnoredProcessFilter.Filter(processes, ignoredNames),
             settings);
+        return CreateTrayStatus(visibleProcesses);
+    }
+
+    private static TrayStatus CreateTrayStatus(IReadOnlyList<CompatibilityProcessInfo> visibleProcesses)
+    {
         string topText = TrayTooltipFormatter.FormatTopProcesses(visibleProcesses, 3);
         return new TrayStatus(
             TrayTooltipFormatter.FormatSummary(visibleProcesses),
@@ -137,8 +142,13 @@ public partial class App : Application
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
             IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
             MonitoringSettings settings = await _settingsStore.GetAsync();
-            IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
+            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
                 IgnoredProcessFilter.Filter(processes, ignoredNames),
+                settings);
+            _trayIcon?.UpdateStatus(CreateTrayStatus(visibleProcesses));
+
+            IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
+                visibleProcesses,
                 settings);
             IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(notifiableProcesses);
 

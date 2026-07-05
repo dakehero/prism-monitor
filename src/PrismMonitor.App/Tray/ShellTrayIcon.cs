@@ -17,6 +17,7 @@ internal sealed class ShellTrayIcon : IDisposable
     private readonly Action _openRequested;
     private readonly Action _exitRequested;
     private readonly Func<Task<TrayStatus>> _statusProvider;
+    private TrayStatus _cachedStatus = new("Prism Monitor", [], 0);
     private bool _disposed;
     private int _displayedProcessCount = -1;
 
@@ -67,13 +68,24 @@ internal sealed class ShellTrayIcon : IDisposable
         try
         {
             TrayStatus status = await _statusProvider().ConfigureAwait(false);
-            UpdateIcon(status.ProcessCount);
-            AddOrUpdate(status.Tooltip);
+            UpdateStatus(status);
         }
         catch (Exception ex)
         {
             Debug.WriteLine(ex);
         }
+    }
+
+    public void UpdateStatus(TrayStatus status)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _cachedStatus = status;
+        UpdateIcon(status.ProcessCount);
+        AddOrUpdate(status.Tooltip);
     }
 
     public bool TryGetIconRect(out ScreenRect rect)
@@ -172,8 +184,8 @@ internal sealed class ShellTrayIcon : IDisposable
 
         try
         {
-            TrayStatus? status = TryReadStatusForMenu();
-            if (status is not null && status.TopProcesses.Count > 0)
+            TrayStatus status = _cachedStatus;
+            if (status.TopProcesses.Count > 0)
             {
                 foreach (string process in status.TopProcesses)
                 {
@@ -252,19 +264,6 @@ internal sealed class ShellTrayIcon : IDisposable
             Icon = _currentIcon,
             Tip = TruncateTooltip(tooltip)
         };
-    }
-
-    private TrayStatus? TryReadStatusForMenu()
-    {
-        try
-        {
-            return _statusProvider().GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine(ex);
-            return null;
-        }
     }
 
     private void UpdateIcon(int processCount)

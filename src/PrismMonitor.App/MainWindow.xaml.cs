@@ -165,6 +165,15 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
+    private void RootNavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+    {
+        string selectedTag = args.SelectedItemContainer?.Tag as string ?? "Processes";
+        bool showSettings = string.Equals(selectedTag, "Settings", StringComparison.Ordinal);
+
+        ProcessesPage.Visibility = showSettings ? Visibility.Collapsed : Visibility.Visible;
+        SettingsPage.Visibility = showSettings ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private async void RefreshTimer_Tick(object? sender, object e)
     {
         await RefreshAsync();

@@ -24,10 +24,36 @@
             </TitleBar.IconSource>
         </TitleBar>
 
-        <TabView Grid.Row="1" Padding="16" Loaded="Root_Loaded">
-            <TabView.TabItems>
-                <TabViewItem Header="Processes" IsClosable="False">
-                    <Grid RowSpacing="12">
+        <NavigationView
+            x:Name="RootNavigationView"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            Loaded="Root_Loaded"
+            PaneDisplayMode="LeftCompact"
+            SelectionChanged="RootNavigationView_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem
+                    Content="Processes"
+                    IsSelected="True"
+                    Tag="Processes">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="List" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
+                    Content="Settings"
+                    Tag="Settings">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Setting" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <Grid Padding="16">
+                <Grid
+                    x:Name="ProcessesPage"
+                    RowSpacing="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
@@ -97,11 +123,12 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                    </Grid>
-                </TabViewItem>
+                </Grid>
 
-                <TabViewItem Header="Settings" IsClosable="False">
-                    <Grid RowSpacing="16">
+                <Grid
+                    x:Name="SettingsPage"
+                    RowSpacing="16"
+                    Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -156,9 +183,8 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
-                    </Grid>
-                </TabViewItem>
-            </TabView.TabItems>
-        </TabView>
+                </Grid>
+            </Grid>
+        </NavigationView>
     </Grid>
 </Window>
