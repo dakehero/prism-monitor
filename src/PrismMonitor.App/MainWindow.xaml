@@ -105,25 +105,10 @@
                     </Style>
                 </ListView.ItemContainerStyle>
                 <ListView.Header>
-                    <Grid Padding="8,0,8,4" ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="32" />
-                            <ColumnDefinition Width="*" MinWidth="260" />
-                            <ColumnDefinition Width="72" />
-                            <ColumnDefinition Width="72" />
-                            <ColumnDefinition Width="104" />
-                            <ColumnDefinition Width="112" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Process" />
-                        <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="PID" />
-                        <TextBlock Grid.Column="3" FontWeight="SemiBold" Text="Arch" />
-                        <TextBlock Grid.Column="4" FontWeight="SemiBold" Text="CPU time" />
-                        <TextBlock Grid.Column="5" FontWeight="SemiBold" Text="Actions" />
-                    </Grid>
-                </ListView.Header>
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="local:ProcessRow">
-                        <Grid Padding="8,4" ColumnSpacing="12">
+                    <Border
+                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                        BorderThickness="0,0,0,1">
+                        <Grid Padding="8,0,8,6" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="32" />
                                 <ColumnDefinition Width="*" MinWidth="260" />
@@ -132,37 +117,63 @@
                                 <ColumnDefinition Width="104" />
                                 <ColumnDefinition Width="112" />
                             </Grid.ColumnDefinitions>
-                            <Image
-                                Width="20"
-                                Height="20"
-                                VerticalAlignment="Center"
-                                Source="{x:Bind Icon, Mode=OneWay}" />
-                            <TextBlock
-                                Grid.Column="1"
-                                VerticalAlignment="Center"
-                                Text="{x:Bind Name, Mode=OneWay}"
-                                TextTrimming="CharacterEllipsis" />
-                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" />
-                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" />
-                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" />
-                            <Button
-                                Grid.Column="5"
-                                VerticalAlignment="Center"
-                                Content="Actions">
-                                <Button.Flyout>
-                                    <MenuFlyout>
-                                        <MenuFlyoutItem
-                                            Click="TerminateMenuItem_Click"
-                                            Tag="{x:Bind}"
-                                            Text="End process" />
-                                        <MenuFlyoutItem
-                                            Click="IgnoreProcessMenuItem_Click"
-                                            Tag="{x:Bind}"
-                                            Text="Ignore process" />
-                                    </MenuFlyout>
-                                </Button.Flyout>
-                            </Button>
+                            <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Process" />
+                            <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="PID" />
+                            <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" />
+                            <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="CPU time" />
+                            <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Actions" />
                         </Grid>
+                    </Border>
+                </ListView.Header>
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="local:ProcessRow">
+                        <Border
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="0,0,0,1">
+                            <Grid Padding="8,6" ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" MinWidth="260" />
+                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="72" />
+                                    <ColumnDefinition Width="104" />
+                                    <ColumnDefinition Width="112" />
+                                </Grid.ColumnDefinitions>
+                                <Image
+                                    Width="20"
+                                    Height="20"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Source="{x:Bind Icon, Mode=OneWay}" />
+                                <TextBlock
+                                    Grid.Column="1"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Text="{x:Bind Name, Mode=OneWay}"
+                                    TextTrimming="CharacterEllipsis" />
+                                <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" />
+                                <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" />
+                                <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" />
+                                <Button
+                                    Grid.Column="5"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Content="Actions">
+                                    <Button.Flyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem
+                                                Click="TerminateMenuItem_Click"
+                                                Tag="{x:Bind}"
+                                                Text="End process" />
+                                            <MenuFlyoutItem
+                                                Click="IgnoreProcessMenuItem_Click"
+                                                Tag="{x:Bind}"
+                                                Text="Ignore process" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </Grid>
+                        </Border>
                     </DataTemplate>
                 </ListView.ItemTemplate>
             </ListView>
