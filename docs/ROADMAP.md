@@ -80,9 +80,23 @@ Acceptance criteria:
 - Ignored processes do not trigger Toast notifications.
 - Toast quick actions can end the process or add it to the ignore list.
 
+## v0.6 Notification Controls
+
+Status: planned.
+
+Make notifications configurable instead of treating every notification as an always-on behavior.
+
+Acceptance criteria:
+
+- Users can enable or disable Toast notifications from the main window.
+- Users can choose whether notifications include quick actions.
+- Users can configure quiet hours for notification suppression.
+- The app records a lightweight in-memory notification history for the current session.
+- Repeated notifications for the same process name are rate-limited.
+- Notification settings persist across app restarts.
+
 ## Future Ideas
 
 - Publisher-aware or path-aware ignore rules.
-- Optional notification quiet hours.
 - Store-ready packaging with a Microsoft Partner Center certificate.
 - Localized UI resources after the English baseline is stable.
