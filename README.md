@@ -41,3 +41,7 @@ Release builds also publish a signed MSIX package for Windows ARM64. The current
 After installation, launch Prism Monitor from Start or another interactive Windows shell. The app runs without elevation by default; use the in-app administrator restart only when elevated process visibility is needed.
 
 The v0.5.x releases cover the full roadmap through process icons, termination, no-flicker refresh, ignore rules, and Toast notifications.
+
+## License
+
+Prism Monitor is licensed under the [MIT License](LICENSE).
