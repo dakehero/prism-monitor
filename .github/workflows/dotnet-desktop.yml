@@ -22,7 +22,7 @@ env:
   APP_PROJECT: src/PrismMonitor.App/PrismMonitor.App.csproj
   TEST_PROJECT: tests/PrismMonitor.Core.Tests/PrismMonitor.Core.Tests.csproj
   PACKAGE_MANIFEST: src/PrismMonitor.App/Package.appxmanifest
-  PACKAGE_SUBJECT: CN=dakehero
+  PACKAGE_SUBJECT: CN=ED5CCA99-70D2-44C7-8831-B3B54CCF6448
 
 jobs:
   test:

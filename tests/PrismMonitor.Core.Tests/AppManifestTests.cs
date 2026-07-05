@@ -24,6 +24,19 @@ public sealed class AppManifestTests
     }
 
     [TestMethod]
+    public void PackageManifestUsesReservedStoreIdentity()
+    {
+        string manifestPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "Package.appxmanifest"));
+        string manifest = File.ReadAllText(manifestPath);
+
+        StringAssert.Contains(manifest, "Name=\"dakehero.prism-monitor\"");
+        StringAssert.Contains(manifest, "Publisher=\"CN=ED5CCA99-70D2-44C7-8831-B3B54CCF6448\"");
+        StringAssert.Contains(manifest, "<DisplayName>prism-monitor</DisplayName>");
+        StringAssert.Contains(manifest, "DisplayName=\"prism-monitor\"");
+        Assert.IsFalse(manifest.Contains("<DisplayName>Prism Monitor</DisplayName>", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public void PackageManifestRegistersToastActivation()
     {
         string manifestPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "Package.appxmanifest"));
