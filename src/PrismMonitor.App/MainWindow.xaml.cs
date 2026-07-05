@@ -18,7 +18,7 @@ public sealed partial class MainWindow : Window
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
     private readonly DispatcherTimer _refreshTimer = new();
-    private readonly SizeInt32 _windowSize = new(860, 560);
+    private readonly SizeInt32 _windowSize = new(1040, 620);
     private bool _isRefreshing;
     private bool _allowClose;
 

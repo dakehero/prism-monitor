@@ -99,15 +99,20 @@
                 Grid.Row="2"
                 ItemsSource="{x:Bind Rows, Mode=OneWay}"
                 SelectionMode="None">
+                <ListView.ItemContainerStyle>
+                    <Style TargetType="ListViewItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListView.ItemContainerStyle>
                 <ListView.Header>
                     <Grid Padding="8,0,8,4" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="32" />
-                            <ColumnDefinition Width="2*" />
-                            <ColumnDefinition Width="80" />
-                            <ColumnDefinition Width="80" />
-                            <ColumnDefinition Width="120" />
-                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" MinWidth="260" />
+                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="72" />
+                            <ColumnDefinition Width="104" />
+                            <ColumnDefinition Width="112" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="1" FontWeight="SemiBold" Text="Process" />
                         <TextBlock Grid.Column="2" FontWeight="SemiBold" Text="PID" />
@@ -121,11 +126,11 @@
                         <Grid Padding="8,4" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="32" />
-                                <ColumnDefinition Width="2*" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="80" />
-                                <ColumnDefinition Width="120" />
-                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="*" MinWidth="260" />
+                                <ColumnDefinition Width="72" />
+                                <ColumnDefinition Width="72" />
+                                <ColumnDefinition Width="104" />
+                                <ColumnDefinition Width="112" />
                             </Grid.ColumnDefinitions>
                             <Image
                                 Width="20"
