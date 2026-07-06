@@ -93,6 +93,28 @@ For processes that cannot be opened without administrator rights or debug privil
 
 This suggests `ProcessMachineTypeInfo` reports the running process machine/persona (`ARM64` or `AMD64`) rather than the full hybrid PE identity. A hybrid image may run as ARM64 or as an x64-compatible persona depending on activation/context. Therefore the app still needs PE metadata inspection when a path is available and it wants to distinguish plain x64 emulation from ARM64EC / ARM64X.
 
+## Apple Music Case Study
+
+Apple Music was running from:
+
+`C:\Program Files\WindowsApps\AppleInc.AppleMusicWin_1.1540.23042.0_arm64__nzyj5cx40ttqa`
+
+Observed process values:
+
+| Process | `ProcessMachineTypeInfo.ProcessMachine` | `MachineAttributes` |
+| --- | ---: | ---: |
+| `AppleMusic.exe` | `0x8664` | `0x000001` |
+| `AMPLibraryAgent.exe` | `0x8664` | `0x000001` |
+
+Direct PE parsing for both executables:
+
+| File | COFF machine | Hybrid sections |
+| --- | ---: | --- |
+| `AppleMusic.exe` | `0x8664` | `.hexpthk`, `.a64xrm` |
+| `AMPLibraryAgent.exe` | `0x8664` | `.hexpthk`, `.a64xrm` |
+
+This explains why Apple Music can be misclassified as plain x64 if the app only reads process-machine values. For x64-compatible processes with a readable executable path, Prism Monitor should inspect PE sections even when `ProcessMachineTypeInfo` succeeds.
+
 Recommended product model:
 
 1. Enumerate all visible processes through a snapshot source.
