@@ -101,6 +101,18 @@ Status: planned.
 
 Reduce background handle usage while improving standard-user visibility. The app should stop treating process handle access as the first step of every refresh. Instead, split process discovery into a lightweight snapshot layer and a best-effort enrichment layer.
 
+### Key Changes
+
+This is the central v0.7 change set. The app should move away from periodic full-process handle scans and toward a staged, cache-aware process pipeline.
+
+Acceptance criteria:
+
+- Background monitoring does not open every process handle once per second.
+- The first pass uses snapshot APIs to collect PID, process name, and cumulative CPU time.
+- Handle-based architecture and path enrichment runs only for new PIDs, changed process identities, or processes that are plausible compatibility-mode candidates.
+- Already enriched PID metadata is cached until the process exits or its identity changes.
+- The main window may request a richer enrichment pass, while tray and Toast flows stay lightweight.
+
 ### Snapshot Provider
 
 Use low-privilege system snapshots to build the base process list.
