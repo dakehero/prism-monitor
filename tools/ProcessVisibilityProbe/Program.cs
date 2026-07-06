@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 
 Console.WriteLine("Prism Monitor process visibility probe");
@@ -52,6 +53,8 @@ PrintSample(
     "Architecture unavailable, but process still visible",
     probes.Where(probe => !probe.ArchReadable)
         .Take(12));
+
+PrintArm64XLikeProcesses(probes);
 
 string PickName(int processId)
 {
@@ -108,6 +111,55 @@ static bool IsElevated()
     return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 }
 
+static void PrintArm64XLikeProcesses(IEnumerable<AccessProbe> probes)
+{
+    List<AccessProbe> rows = probes
+        .Where(probe => probe.ImagePath is not null && HasArm64XMetadata(probe.ImagePath))
+        .Take(20)
+        .ToList();
+
+    Console.WriteLine("Accessible processes whose image has ARM64X-like PE metadata");
+    Console.WriteLine($"{"PID",8}  {"Name",-32} {"Machine",-10} {"Attrs",-8} Path");
+    foreach (AccessProbe row in rows)
+    {
+        Console.WriteLine($"{row.ProcessId,8}  {Trim(row.Name, 32),-32} 0x{row.ProcessMachine:x4}     0x{row.MachineAttributes:x6} {row.ImagePath}");
+    }
+
+    if (rows.Count == 0)
+    {
+        Console.WriteLine("(none found)");
+    }
+
+    Console.WriteLine();
+}
+
+static bool HasArm64XMetadata(string path)
+{
+    try
+    {
+        using FileStream stream = File.OpenRead(path);
+        using PEReader reader = new(stream);
+        return reader.PEHeaders.SectionHeaders.Any(section =>
+            string.Equals(section.Name, ".a64xrm", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(section.Name, ".hexpthk", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(section.Name, ".chpe", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(section.Name, ".arm64x", StringComparison.OrdinalIgnoreCase)
+            || section.Name.Contains("arm64x", StringComparison.OrdinalIgnoreCase));
+    }
+    catch (IOException)
+    {
+        return false;
+    }
+    catch (UnauthorizedAccessException)
+    {
+        return false;
+    }
+    catch (BadImageFormatException)
+    {
+        return false;
+    }
+}
+
 internal sealed record AccessProbe(
     int ProcessId,
     string Name,
@@ -116,6 +168,9 @@ internal sealed record AccessProbe(
     bool PathReadable,
     bool ArchReadable,
     bool MachineInfoReadable,
+    ushort ProcessMachine,
+    uint MachineAttributes,
+    string? ImagePath,
     bool ProcessTimesReadable)
 {
     private const uint ProcessQueryLimitedInformation = 0x1000;
@@ -124,22 +179,34 @@ internal sealed record AccessProbe(
     {
         if (processId == 0)
         {
-            return new AccessProbe(processId, name, false, null, false, false, false, false);
+            return new AccessProbe(processId, name, false, null, false, false, false, 0, 0, null, false);
         }
 
         nint handle = Native.OpenProcess(ProcessQueryLimitedInformation, false, (uint)processId);
         if (handle == 0)
         {
-            return new AccessProbe(processId, name, false, Marshal.GetLastPInvokeError(), false, false, false, false);
+            return new AccessProbe(processId, name, false, Marshal.GetLastPInvokeError(), false, false, false, 0, 0, null, false);
         }
 
         try
         {
-            bool pathReadable = TryReadPath(handle);
+            string? imagePath = TryReadPath(handle);
+            bool pathReadable = imagePath is not null;
             bool archReadable = Native.IsWow64Process2(handle, out _, out _);
-            bool machineInfoReadable = TryReadMachineInfo(handle);
+            bool machineInfoReadable = TryReadMachineInfo(handle, out ProcessMachineInformation machineInformation);
             bool processTimesReadable = Native.GetProcessTimes(handle, out _, out _, out _, out _);
-            return new AccessProbe(processId, name, true, null, pathReadable, archReadable, machineInfoReadable, processTimesReadable);
+            return new AccessProbe(
+                processId,
+                name,
+                true,
+                null,
+                pathReadable,
+                archReadable,
+                machineInfoReadable,
+                machineInformation.ProcessMachine,
+                machineInformation.MachineAttributes,
+                imagePath,
+                processTimesReadable);
         }
         finally
         {
@@ -147,16 +214,18 @@ internal sealed record AccessProbe(
         }
     }
 
-    private static bool TryReadPath(nint handle)
+    private static string? TryReadPath(nint handle)
     {
         char[] buffer = new char[32_767];
         uint length = (uint)buffer.Length;
-        return Native.QueryFullProcessImageName(handle, 0, buffer, ref length) && length > 0;
+        return Native.QueryFullProcessImageName(handle, 0, buffer, ref length) && length > 0
+            ? new string(buffer, 0, checked((int)length))
+            : null;
     }
 
-    private static bool TryReadMachineInfo(nint handle)
+    private static bool TryReadMachineInfo(nint handle, out ProcessMachineInformation machineInformation)
     {
-        ProcessMachineInformation machineInformation = default;
+        machineInformation = default;
         return Native.GetProcessInformation(
             handle,
             Native.ProcessMachineTypeInfo,

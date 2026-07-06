@@ -82,6 +82,17 @@ For process architecture specifically, there does not appear to be a documented 
 
 For processes that cannot be opened without administrator rights or debug privilege, architecture should remain `Unknown` unless it can be inferred from a trustworthy executable path.
 
+`ProcessMachineTypeInfo` also does not replace PE inspection for ARM64EC / ARM64X detection. A follow-up run printed accessible images with ARM64X-like section metadata:
+
+| Process | Path family | `ProcessMachine` | `MachineAttributes` |
+| --- | --- | ---: | ---: |
+| `cmd.exe` | `C:\Windows\System32` | `0xaa64` | `0x000003` |
+| `dllhost.exe` | `C:\Windows\System32` | `0xaa64` | `0x000003` |
+| `audiodg.exe` | `C:\Windows\System32` | `0xaa64` | `0x000003` |
+| `olkexthostcompat.exe` | Outlook WindowsApps package | `0x8664` | `0x000001` |
+
+This suggests `ProcessMachineTypeInfo` reports the running process machine/persona (`ARM64` or `AMD64`) rather than the full hybrid PE identity. A hybrid image may run as ARM64 or as an x64-compatible persona depending on activation/context. Therefore the app still needs PE metadata inspection when a path is available and it wants to distinguish plain x64 emulation from ARM64EC / ARM64X.
+
 Recommended product model:
 
 1. Enumerate all visible processes through a snapshot source.
@@ -95,6 +106,7 @@ This would allow Prism Monitor to show system-owned processes with name and CPU 
 
 - Architecture cannot be read for processes whose handle cannot be opened.
 - `GetProcessInformation(ProcessMachineTypeInfo)` does not bypass the handle boundary.
+- `GetProcessInformation(ProcessMachineTypeInfo)` does not by itself distinguish plain x64 from ARM64EC / ARM64X; PE metadata remains useful.
 - Process path and icon cannot be read for those inaccessible processes.
 - Termination should remain disabled for inaccessible processes.
 - NT `NtQuerySystemInformation` is not WinRT. It is lower-level than Toolhelp/PSAPI, so Store review risk should be weighed against the user value.
