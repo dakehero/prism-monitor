@@ -108,8 +108,25 @@ Acceptance criteria:
 - Existing Toast quick actions for ending or ignoring a process keep their current behavior.
 - Toast activation handling remains safe when the app is already running, hidden to tray, or cold-started from notification activation.
 
+## v0.7 App Identity Rules
+
+Status: planned.
+
+Replace the simple process-name ignore list with a small rule system that understands app identity and notification intent.
+
+Acceptance criteria:
+
+- Rules can match by process name, executable path, and publisher or package identity when Windows exposes that metadata.
+- Users can create a rule from the Processes page, History page, or Filters page without retyping known process details.
+- Rules can choose what to suppress: main-window visibility, tray visibility, Toast notifications, or all compatibility-mode surfacing.
+- Rule matching is case-insensitive where Windows paths and names are case-insensitive.
+- Processes with unreadable paths or publisher metadata fall back to process-name matching without crashing the app.
+- The main window, tray tooltip, tray menu, Toast notifications, and history views all use the same rule evaluator.
+- Existing name-only ignored apps migrate into equivalent v0.7 rules on first run.
+- The rule list updates without flicker and remains stable while background process refreshes continue.
+
 ## Future Ideas
 
-- Publisher-aware or path-aware ignore rules.
 - Store-ready packaging with a Microsoft Partner Center certificate.
 - Localized UI resources after the English baseline is stable.
+- Command-line render-review harness for WinUI UI changes.
