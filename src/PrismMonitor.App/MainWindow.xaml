@@ -170,20 +170,24 @@
                                 x:Name="HistoryArchitectureComboBox"
                                 Grid.Column="1"
                                 SelectedIndex="0"
-                                SelectionChanged="HistoryFilter_Changed">
-                                <ComboBoxItem Content="All" />
-                                <ComboBoxItem Content="x86" />
-                                <ComboBoxItem Content="x64" />
-                                <ComboBoxItem Content="ARM64EC" />
+                                SelectedValuePath="Tag"
+                                SelectionChanged="HistoryFilter_Changed"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All" Tag="All" />
+                                <ComboBoxItem Content="x86" Tag="x86" />
+                                <ComboBoxItem Content="x64" Tag="x64" />
+                                <ComboBoxItem Content="ARM64EC" Tag="ARM64EC" />
                             </ComboBox>
                             <ComboBox
                                 x:Name="HistoryIgnoredStateComboBox"
                                 Grid.Column="2"
                                 SelectedIndex="0"
-                                SelectionChanged="HistoryFilter_Changed">
-                                <ComboBoxItem Content="All" />
-                                <ComboBoxItem Content="Ignored" />
-                                <ComboBoxItem Content="Not ignored" />
+                                SelectedValuePath="Tag"
+                                SelectionChanged="HistoryFilter_Changed"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All" Tag="All" />
+                                <ComboBoxItem Content="Ignored" Tag="Ignored" />
+                                <ComboBoxItem Content="Not ignored" Tag="Not ignored" />
                             </ComboBox>
                             <Button
                                 Grid.Column="3"

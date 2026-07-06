@@ -82,6 +82,27 @@ public sealed class MainWindowLayoutTests
             "Process, history, and filter list rows should remove ListViewItem default padding so headers and content share the same column origin.");
     }
 
+    [TestMethod]
+    public void HistoryFilterComboBoxItemsExposeStableTags()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+        string code = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml.cs")));
+        string historyPage = SliceBetween(xaml, "x:Name=\"HistoryPage\"", "x:Name=\"FiltersPage\"");
+
+        StringAssert.Contains(historyPage, "Tag=\"All\"");
+        StringAssert.Contains(historyPage, "Tag=\"x86\"");
+        StringAssert.Contains(historyPage, "Tag=\"x64\"");
+        StringAssert.Contains(historyPage, "Tag=\"ARM64EC\"");
+        StringAssert.Contains(historyPage, "Tag=\"Ignored\"");
+        StringAssert.Contains(historyPage, "Tag=\"Not ignored\"");
+        Assert.IsGreaterThanOrEqualTo(
+            2,
+            CountOccurrences(historyPage, "SelectedValuePath=\"Tag\""),
+            "History filters should bind selected values to stable tags instead of relying on WinUI item container text.");
+        StringAssert.Contains(code, "comboBox.SelectedValue is string selectedValue");
+        StringAssert.Contains(code, "item.Tag is string tag");
+    }
+
     private static string SliceBetween(string value, string startMarker, string endMarker)
     {
         int start = value.IndexOf(startMarker, StringComparison.Ordinal);

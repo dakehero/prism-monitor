@@ -668,9 +668,38 @@ public sealed partial class MainWindow : Window
             return null;
         }
 
-        return comboBox.SelectedItem is ComboBoxItem item
-            ? item.Content?.ToString()
-            : comboBox.SelectedItem?.ToString();
+        if (comboBox.SelectedValue is string selectedValue && !string.IsNullOrWhiteSpace(selectedValue))
+        {
+            return selectedValue;
+        }
+
+        if (comboBox.SelectedItem is ComboBoxItem item)
+        {
+            if (item.Tag is string tag && !string.IsNullOrWhiteSpace(tag))
+            {
+                return tag;
+            }
+
+            return item.Content switch
+            {
+                string text => text,
+                ContentControl { Content: string text } => text,
+                _ => item.Content?.ToString()
+            };
+        }
+
+        if (comboBox.SelectedItem is ContentControl { Tag: string selectedItemTag }
+            && !string.IsNullOrWhiteSpace(selectedItemTag))
+        {
+            return selectedItemTag;
+        }
+
+        if (comboBox.SelectedItem is ContentControl { Content: string selectedItemText })
+        {
+            return selectedItemText;
+        }
+
+        return comboBox.SelectedItem?.ToString();
     }
 
     private static string FormatHistoryTimestamp(DateTimeOffset timestamp)
