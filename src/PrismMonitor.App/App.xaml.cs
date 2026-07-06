@@ -5,7 +5,6 @@ using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Power;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
-using PrismMonitor.App.Elevation;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Power;
 using PrismMonitor.App.Processes;
@@ -35,7 +34,6 @@ public partial class App : Application
     private bool _isNotificationRefreshRunning;
     private bool _isMainWindowVisible;
     private DateTimeOffset _lastInteractionRefresh = DateTimeOffset.MinValue;
-    private readonly bool _isElevated = ElevationHelper.IsCurrentProcessElevated();
 
     public App()
     {
@@ -53,11 +51,9 @@ public partial class App : Application
             RequestInteractionRefresh,
             GetTrayStatusAsync);
 
-        if (!_isElevated)
-        {
-            _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
-            _toastService.Register();
-        }
+        _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
+        _toastService.Register();
+
         _powerStatusProvider.PowerSourceChanged += PowerStatusProvider_PowerSourceChanged;
         _notificationTimer.Interval = TimeSpan.FromSeconds(1);
         _notificationTimer.Tick += NotificationTimer_Tick;
@@ -118,9 +114,7 @@ public partial class App : Application
         _window = new MainWindow(
             _processService,
             _ignoredProcessStore,
-            _settingsStore,
-            _isElevated,
-            RelaunchAsAdministrator);
+            _settingsStore);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) =>
         {
@@ -162,17 +156,6 @@ public partial class App : Application
     private void CurrentInstance_Activated(object? sender, AppActivationArguments args)
     {
         _ = _dispatcherQueue.TryEnqueue(OpenProcessWindow);
-    }
-
-    private bool RelaunchAsAdministrator()
-    {
-        bool started = ElevationHelper.TryRelaunchCurrentProcessAsAdministrator();
-        if (started)
-        {
-            ExitApplication();
-        }
-
-        return started;
     }
 
     private void PowerStatusProvider_PowerSourceChanged(object? sender, EventArgs e)

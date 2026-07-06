@@ -173,7 +173,6 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="Settings" />
@@ -197,16 +196,6 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                     </Grid>
-
-                    <StackPanel Grid.Row="2" Spacing="8">
-                        <TextBlock
-                            x:Name="ElevationStatusTextBlock"
-                            TextWrapping="WrapWholeWords" />
-                        <Button
-                            x:Name="RelaunchAsAdministratorButton"
-                            Click="RelaunchAsAdministratorButton_Click"
-                            Content="Restart as administrator" />
-                    </StackPanel>
                 </Grid>
             </Grid>
         </NavigationView>
