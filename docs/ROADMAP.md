@@ -80,83 +80,33 @@ Acceptance criteria:
 - Ignored processes do not trigger Toast notifications.
 - Toast quick actions can end the process or add it to the ignore list.
 
-## v0.6 Notification Controls
+## v0.6 Main Window History and UI Polish
+
+Status: planned/in-progress.
+
+Polish the main window settings surface and add durable launch history for compatibility-mode processes.
+
+Acceptance criteria:
+
+- Settings are grouped into Monitoring, Notifications, Permissions, and Data sections.
+- Launch history records compatibility-mode launches for 30 days.
+- History persists as JSONL events with a rebuilt summary for the main window.
+- Filters page uses diff-style updates and does not clear, rebuild, or flicker during process refresh.
+- Adding and removing ignored apps remains stable.
+
+## v0.6.1 Toast Navigation
 
 Status: planned.
 
-Make notifications configurable instead of treating every notification as an always-on behavior.
+Make Toast notifications useful as entry points into the main window.
 
 Acceptance criteria:
 
-- Users can enable or disable Toast notifications from the main window.
-- Users can choose whether notifications include quick actions.
-- Users can configure quiet hours for notification suppression.
-- The app records a lightweight in-memory notification history for the current session.
-- Repeated notifications for the same process name are rate-limited.
-- Notification settings persist across app restarts.
-
-## v0.7 Low-Privilege Process Pipeline
-
-Status: planned.
-
-Reduce background handle usage while improving standard-user visibility. The app should stop treating process handle access as the first step of every refresh. Instead, split process discovery into a lightweight snapshot layer and a best-effort enrichment layer.
-
-### Key Changes
-
-This is the central v0.7 change set. The app should move away from periodic full-process handle scans and toward a staged, cache-aware process pipeline.
-
-Acceptance criteria:
-
-- Background monitoring does not open every process handle once per second.
-- The first pass uses snapshot APIs to collect PID, process name, and cumulative CPU time.
-- Handle-based architecture and path enrichment runs only for new PIDs, changed process identities, or processes that are plausible compatibility-mode candidates.
-- Already enriched PID metadata is cached until the process exits or its identity changes.
-- The main window may request a richer enrichment pass, while tray and Toast flows stay lightweight.
-
-### Snapshot Provider
-
-Use low-privilege system snapshots to build the base process list.
-
-Acceptance criteria:
-
-- The snapshot layer can list PID, process name, and cumulative CPU time without requiring administrator elevation.
-- System-owned processes remain visible when Windows denies limited-information process handles.
-- The snapshot layer does not read executable paths, icons, or architecture.
-- Snapshot refreshes are safe to run in background notification and tray status flows.
-
-### Enrichment Provider
-
-Use handle-based and file-based APIs only to enrich processes that need more detail.
-
-Acceptance criteria:
-
-- Path, architecture, icon, and termination capability are populated only when the process can be opened with least-privilege access.
-- Architecture detection prefers process APIs for runtime machine values.
-- x64-compatible processes with readable executable paths are additionally checked for ARM64EC / ARM64X PE metadata.
-- Processes whose architecture cannot be verified are shown as `Unknown` or `Unavailable` instead of being guessed.
-- Termination actions are disabled for inaccessible or protected processes.
-
-### Enrichment Cache
-
-Avoid repeating expensive or permission-sensitive work on every refresh.
-
-Acceptance criteria:
-
-- PID-scoped metadata such as architecture, executable path, and icon lookup results are cached while the process remains alive.
-- The cache is invalidated when a PID exits or its creation identity changes.
-- Background notification scans do not re-open every process handle every cycle.
-- Main-window refreshes may request richer enrichment, but they still reuse cached metadata where possible.
-
-### Power and Store Constraints
-
-Keep the design friendly to Microsoft Store certification and laptop battery life.
-
-Acceptance criteria:
-
-- The app continues to run without `allowElevation`.
-- Battery-mode background behavior remains interaction-driven unless the main window is visible.
-- Toast detection never requires administrator elevation.
-- The implementation avoids CPU sampling loops and uses system-provided process data.
+- Clicking the Toast body opens the main window instead of only dismissing the notification.
+- If the notified process is still running, the app opens the Processes page and focuses or highlights that process.
+- If the process has exited, the app opens the History page and filters to the notified process name.
+- Existing Toast quick actions for ending or ignoring a process keep their current behavior.
+- Toast activation handling remains safe when the app is already running, hidden to tray, or cold-started from notification activation.
 
 ## Future Ideas
 
