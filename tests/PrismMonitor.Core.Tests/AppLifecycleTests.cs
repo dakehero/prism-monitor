@@ -23,6 +23,18 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(program, "Application.Start");
     }
 
+    [TestMethod]
+    public void AppHandlesNotificationActivationArguments()
+    {
+        string appPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "App.xaml.cs"));
+        string app = File.ReadAllText(appPath);
+
+        StringAssert.Contains(app, "ExtendedActivationKind.AppNotification");
+        StringAssert.Contains(app, "AppNotificationActivatedEventArgs");
+        StringAssert.Contains(app, "NotificationActivationParser.Parse");
+        StringAssert.Contains(app, "OpenNotificationTargetAsync");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

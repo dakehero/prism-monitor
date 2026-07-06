@@ -1,6 +1,7 @@
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
+using PrismMonitor.App.Diagnostics;
 using WinRT;
 
 namespace PrismMonitor.App;
@@ -12,20 +13,30 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        ComWrappersSupport.InitializeComWrappers();
+        StartupDiagnostics.Register();
 
-        if (RedirectActivationToMainInstance())
+        try
         {
-            return;
+            ComWrappersSupport.InitializeComWrappers();
+
+            if (RedirectActivationToMainInstance())
+            {
+                return;
+            }
+
+            Application.Start(_ =>
+            {
+                DispatcherQueueSynchronizationContext context = new(DispatcherQueue.GetForCurrentThread());
+                SynchronizationContext.SetSynchronizationContext(context);
+                App app = new();
+                GC.KeepAlive(app);
+            });
         }
-
-        Application.Start(_ =>
+        catch (Exception ex)
         {
-            DispatcherQueueSynchronizationContext context = new(DispatcherQueue.GetForCurrentThread());
-            SynchronizationContext.SetSynchronizationContext(context);
-            App app = new();
-            GC.KeepAlive(app);
-        });
+            StartupDiagnostics.Write("Program.Main", ex);
+            throw;
+        }
     }
 
     private static bool RedirectActivationToMainInstance()

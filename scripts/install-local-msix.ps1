@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$packageName = "dakehero.prism-monitor"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -98,7 +99,7 @@ Write-Host "Installing package: $($msix.FullName)"
 try {
     Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
 } catch {
-    $existingPackage = Get-AppxPackage -Name dakehero.PrismMonitor
+    $existingPackage = Get-AppxPackage -Name $packageName
     if (-not $existingPackage) {
         throw
     }
@@ -108,9 +109,9 @@ try {
     Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
 }
 
-$package = Get-AppxPackage -Name dakehero.PrismMonitor
+$package = Get-AppxPackage -Name $packageName
 if (-not $package) {
-    throw "Package installation completed, but dakehero.PrismMonitor was not found."
+    throw "Package installation completed, but $packageName was not found."
 }
 
 Write-Host "Installed: $($package.PackageFullName)"

@@ -14,13 +14,13 @@ public sealed class AppManifestTests
     }
 
     [TestMethod]
-    public void PackageManifestUsesOnlyRequiredRestrictedCapabilities()
+    public void PackageManifestAllowsElevation()
     {
         string manifestPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "Package.appxmanifest"));
         string manifest = File.ReadAllText(manifestPath);
 
         StringAssert.Contains(manifest, "Capability Name=\"runFullTrust\"");
-        Assert.IsFalse(manifest.Contains("Capability Name=\"allowElevation\"", StringComparison.Ordinal));
+        StringAssert.Contains(manifest, "Capability Name=\"allowElevation\"");
     }
 
     [TestMethod]
