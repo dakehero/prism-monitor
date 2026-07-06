@@ -21,6 +21,7 @@ It compares:
 - PSAPI `EnumProcesses`
 - NT `NtQuerySystemInformation(SystemProcessInformation)`
 - handle-based enrichment with `PROCESS_QUERY_LIMITED_INFORMATION`
+- `GetProcessInformation(ProcessMachineTypeInfo)` architecture enrichment
 
 ## Result
 
@@ -45,8 +46,19 @@ Observed counts:
 | `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` | 206 |
 | `QueryFullProcessImageName` | 206 |
 | `IsWow64Process2` | 206 |
+| `GetProcessInformation(ProcessMachineTypeInfo)` | 191-206 |
 | `GetProcessTimes` | 206 |
 | `OpenProcess` denied | 176 |
+
+The second architecture run was taken after the live process set changed:
+
+| Source | Count |
+| --- | ---: |
+| Union PIDs | 370 |
+| `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` | 191 |
+| `IsWow64Process2` | 191 |
+| `GetProcessInformation(ProcessMachineTypeInfo)` | 191 |
+| `OpenProcess` denied | 177 |
 
 Representative processes visible without an openable limited-information handle:
 
@@ -63,6 +75,13 @@ Representative processes visible without an openable limited-information handle:
 
 The snapshot approach works for the main product goal of improving visibility without administrator elevation.
 
+For process architecture specifically, there does not appear to be a documented no-handle API that returns the architecture of an arbitrary running process. Both tested official architecture APIs require a process handle with limited query access:
+
+- `IsWow64Process2`
+- `GetProcessInformation(ProcessMachineTypeInfo)`
+
+For processes that cannot be opened without administrator rights or debug privilege, architecture should remain `Unknown` unless it can be inferred from a trustworthy executable path.
+
 Recommended product model:
 
 1. Enumerate all visible processes through a snapshot source.
@@ -75,6 +94,7 @@ This would allow Prism Monitor to show system-owned processes with name and CPU 
 ## Caveats
 
 - Architecture cannot be read for processes whose handle cannot be opened.
+- `GetProcessInformation(ProcessMachineTypeInfo)` does not bypass the handle boundary.
 - Process path and icon cannot be read for those inaccessible processes.
 - Termination should remain disabled for inaccessible processes.
 - NT `NtQuerySystemInformation` is not WinRT. It is lower-level than Toolhelp/PSAPI, so Store review risk should be weighed against the user value.

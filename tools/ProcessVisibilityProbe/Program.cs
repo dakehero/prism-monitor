@@ -33,6 +33,7 @@ Console.WriteLine("Handle-dependent enrichment from union PIDs");
 PrintCount("OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)", probes.Count(probe => probe.Opened));
 PrintCount("QueryFullProcessImageName", probes.Count(probe => probe.PathReadable));
 PrintCount("IsWow64Process2", probes.Count(probe => probe.ArchReadable));
+PrintCount("GetProcessInformation(ProcessMachineTypeInfo)", probes.Count(probe => probe.MachineInfoReadable));
 PrintCount("GetProcessTimes", probes.Count(probe => probe.ProcessTimesReadable));
 PrintCount("OpenProcess denied", probes.Count(probe => probe.OpenError == 5));
 Console.WriteLine();
@@ -114,6 +115,7 @@ internal sealed record AccessProbe(
     int? OpenError,
     bool PathReadable,
     bool ArchReadable,
+    bool MachineInfoReadable,
     bool ProcessTimesReadable)
 {
     private const uint ProcessQueryLimitedInformation = 0x1000;
@@ -122,21 +124,22 @@ internal sealed record AccessProbe(
     {
         if (processId == 0)
         {
-            return new AccessProbe(processId, name, false, null, false, false, false);
+            return new AccessProbe(processId, name, false, null, false, false, false, false);
         }
 
         nint handle = Native.OpenProcess(ProcessQueryLimitedInformation, false, (uint)processId);
         if (handle == 0)
         {
-            return new AccessProbe(processId, name, false, Marshal.GetLastPInvokeError(), false, false, false);
+            return new AccessProbe(processId, name, false, Marshal.GetLastPInvokeError(), false, false, false, false);
         }
 
         try
         {
             bool pathReadable = TryReadPath(handle);
             bool archReadable = Native.IsWow64Process2(handle, out _, out _);
+            bool machineInfoReadable = TryReadMachineInfo(handle);
             bool processTimesReadable = Native.GetProcessTimes(handle, out _, out _, out _, out _);
-            return new AccessProbe(processId, name, true, null, pathReadable, archReadable, processTimesReadable);
+            return new AccessProbe(processId, name, true, null, pathReadable, archReadable, machineInfoReadable, processTimesReadable);
         }
         finally
         {
@@ -149,6 +152,16 @@ internal sealed record AccessProbe(
         char[] buffer = new char[32_767];
         uint length = (uint)buffer.Length;
         return Native.QueryFullProcessImageName(handle, 0, buffer, ref length) && length > 0;
+    }
+
+    private static bool TryReadMachineInfo(nint handle)
+    {
+        ProcessMachineInformation machineInformation = default;
+        return Native.GetProcessInformation(
+            handle,
+            Native.ProcessMachineTypeInfo,
+            ref machineInformation,
+            (uint)Marshal.SizeOf<ProcessMachineInformation>());
     }
 }
 
@@ -323,6 +336,7 @@ internal static partial class Native
 {
     public const uint Th32csSnapprocess = 0x00000002;
     public const int SystemProcessInformation = 5;
+    public const int ProcessMachineTypeInfo = 9;
     public const int StatusInfoLengthMismatch = unchecked((int)0xC0000004);
     public static readonly nint InvalidHandleValue = -1;
 
@@ -360,8 +374,24 @@ internal static partial class Native
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool Process32Next(nint snapshot, ref ProcessEntry32 entry);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetProcessInformation(
+        nint process,
+        int processInformationClass,
+        ref ProcessMachineInformation processInformation,
+        uint processInformationSize);
+
     [LibraryImport("ntdll.dll")]
     public static partial int NtQuerySystemInformation(int systemInformationClass, nint systemInformation, int systemInformationLength, out int returnLength);
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct ProcessMachineInformation
+{
+    public ushort ProcessMachine;
+    public ushort Res0;
+    public uint MachineAttributes;
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
