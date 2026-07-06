@@ -11,7 +11,7 @@ on:
       version:
         description: "Package version, for example 0.5.0"
         required: false
-        default: "0.5.3"
+        default: "0.6.1"
 
 permissions:
   contents: write

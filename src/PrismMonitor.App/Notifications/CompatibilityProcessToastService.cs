@@ -1,5 +1,7 @@
 using Microsoft.Windows.AppNotifications;
 using Microsoft.Windows.AppNotifications.Builder;
+using PrismMonitor.App.Diagnostics;
+using PrismMonitor.Core.Notifications;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.App.Processes;
 
@@ -7,11 +9,6 @@ namespace PrismMonitor.App.Notifications;
 
 internal sealed class CompatibilityProcessToastService : IDisposable
 {
-    private const string ActionKey = "action";
-    private const string ProcessIdKey = "pid";
-    private const string ProcessNameKey = "name";
-    private const string TerminateAction = "terminate";
-    private const string IgnoreAction = "ignore";
     private readonly IgnoredProcessStore _ignoredProcessStore;
     private readonly ProcessTerminator _processTerminator = new();
     private readonly AppNotificationManager _manager = AppNotificationManager.Default;
@@ -22,6 +19,8 @@ internal sealed class CompatibilityProcessToastService : IDisposable
         _ignoredProcessStore = ignoredProcessStore;
     }
 
+    public event EventHandler<NotificationProcessOpenRequestedEventArgs>? ProcessOpenRequested;
+
     public void Register()
     {
         if (!AppNotificationManager.IsSupported() || _registered)
@@ -29,9 +28,17 @@ internal sealed class CompatibilityProcessToastService : IDisposable
             return;
         }
 
-        _manager.NotificationInvoked += NotificationInvoked;
-        _manager.Register();
-        _registered = true;
+        try
+        {
+            _manager.NotificationInvoked += NotificationInvoked;
+            _manager.Register();
+            _registered = true;
+        }
+        catch (Exception ex)
+        {
+            _manager.NotificationInvoked -= NotificationInvoked;
+            StartupDiagnostics.Write("CompatibilityProcessToastService.Register", ex);
+        }
     }
 
     public void ShowNewProcess(CompatibilityProcessInfo process)
@@ -42,19 +49,22 @@ internal sealed class CompatibilityProcessToastService : IDisposable
         }
 
         AppNotification notification = new AppNotificationBuilder()
+            .AddArgument(NotificationActivationParser.ActionKey, NotificationActivationParser.OpenAction)
+            .AddArgument(NotificationActivationParser.ProcessIdKey, process.ProcessId.ToString())
+            .AddArgument(NotificationActivationParser.ProcessNameKey, process.Name)
             .AddText("Compatibility-mode process detected")
             .AddText($"{process.Name} ({process.Architecture})")
             .AddButton(new AppNotificationButton("End now")
-                .AddArgument(ActionKey, TerminateAction)
-                .AddArgument(ProcessIdKey, process.ProcessId.ToString())
-                .AddArgument(ProcessNameKey, process.Name))
+                .AddArgument(NotificationActivationParser.ActionKey, NotificationActivationParser.TerminateAction)
+                .AddArgument(NotificationActivationParser.ProcessIdKey, process.ProcessId.ToString())
+                .AddArgument(NotificationActivationParser.ProcessNameKey, process.Name))
             .AddButton(new AppNotificationButton("Always ignore")
-                .AddArgument(ActionKey, IgnoreAction)
-                .AddArgument(ProcessNameKey, process.Name))
+                .AddArgument(NotificationActivationParser.ActionKey, NotificationActivationParser.IgnoreAction)
+                .AddArgument(NotificationActivationParser.ProcessNameKey, process.Name))
             .SetTag(process.ProcessId.ToString())
             .BuildNotification();
 
-        _manager.Show(notification);
+        TryShow(notification);
     }
 
     public void Dispose()
@@ -64,29 +74,49 @@ internal sealed class CompatibilityProcessToastService : IDisposable
             return;
         }
 
-        _manager.NotificationInvoked -= NotificationInvoked;
-        _manager.Unregister();
+        try
+        {
+            _manager.NotificationInvoked -= NotificationInvoked;
+            _manager.Unregister();
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Write("CompatibilityProcessToastService.Dispose", ex);
+        }
+
         _registered = false;
     }
 
     private async void NotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args)
     {
-        if (!args.Arguments.TryGetValue(ActionKey, out string? action))
+        NotificationActivation activation = NotificationActivationParser.Parse(
+            new Dictionary<string, string>(args.Arguments));
+
+        await HandleActivationAsync(activation);
+    }
+
+    internal async Task HandleActivationAsync(NotificationActivation activation)
+    {
+        if (activation.Kind == NotificationActivationKind.OpenProcess
+            && activation.ProcessId is int openProcessId
+            && activation.ProcessName is string openProcessName)
         {
+            ProcessOpenRequested?.Invoke(
+                this,
+                new NotificationProcessOpenRequestedEventArgs(openProcessId, openProcessName));
             return;
         }
 
-        if (action == TerminateAction
-            && args.Arguments.TryGetValue(ProcessIdKey, out string? processIdValue)
-            && int.TryParse(processIdValue, out int processId))
+        if (activation.Kind == NotificationActivationKind.TerminateProcess
+            && activation.ProcessId is int terminateProcessId)
         {
-            ProcessTerminationResult result = _processTerminator.Terminate(processId);
+            ProcessTerminationResult result = _processTerminator.Terminate(terminateProcessId);
             ShowStatus("End process", result.Message);
             return;
         }
 
-        if (action == IgnoreAction
-            && args.Arguments.TryGetValue(ProcessNameKey, out string? processName))
+        if (activation.Kind == NotificationActivationKind.IgnoreProcess
+            && activation.ProcessName is string processName)
         {
             await _ignoredProcessStore.AddAsync(processName);
             ShowStatus("Added to ignore list", processName);
@@ -105,6 +135,25 @@ internal sealed class CompatibilityProcessToastService : IDisposable
             .AddText(message)
             .BuildNotification();
 
-        _manager.Show(notification);
+        TryShow(notification);
     }
+
+    private void TryShow(AppNotification notification)
+    {
+        try
+        {
+            _manager.Show(notification);
+        }
+        catch (Exception ex)
+        {
+            StartupDiagnostics.Write("CompatibilityProcessToastService.Show", ex);
+        }
+    }
+}
+
+internal sealed class NotificationProcessOpenRequestedEventArgs(int processId, string processName) : EventArgs
+{
+    public int ProcessId { get; } = processId;
+
+    public string ProcessName { get; } = processName;
 }

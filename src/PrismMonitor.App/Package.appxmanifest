@@ -12,7 +12,7 @@
   <Identity
     Name="dakehero.prism-monitor"
     Publisher="CN=ED5CCA99-70D2-44C7-8831-B3B54CCF6448"
-    Version="0.5.3.0" />
+    Version="0.6.1.0" />
 
   <mp:PhoneIdentity PhoneProductId="59A18C84-873D-4D12-A1ED-F1711414BA73" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -64,5 +64,6 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="allowElevation" />
   </Capabilities>
 </Package>

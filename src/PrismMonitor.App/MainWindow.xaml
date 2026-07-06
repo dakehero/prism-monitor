@@ -41,6 +41,13 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
+                    Content="History"
+                    Tag="History">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Library" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     Content="Filters"
                     Tag="Filters">
                     <NavigationViewItem.Icon>
@@ -67,10 +74,19 @@
                             <Button Grid.Column="1" Click="RefreshButton_Click" Content="Refresh" />
                         </Grid>
 
-                        <ListView Grid.Row="1" ItemsSource="{x:Bind Rows, Mode=OneWay}" SelectionMode="None">
+                        <ListView
+                            x:Name="ProcessListView"
+                            Grid.Row="1"
+                            ItemsSource="{x:Bind Rows, Mode=OneWay}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            ScrollViewer.HorizontalScrollMode="Disabled"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            ScrollViewer.VerticalScrollMode="Enabled"
+                            SelectionMode="Single">
                             <ListView.ItemContainerStyle>
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="0" />
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.Header>
@@ -84,11 +100,11 @@
                                             <ColumnDefinition Width="104" />
                                             <ColumnDefinition Width="112" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Process" />
-                                        <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="PID" />
-                                        <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" />
-                                        <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="CPU time" />
-                                        <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Actions" />
+                                        <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Process" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="PID" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="CPU time" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Actions" TextAlignment="Left" />
                                     </Grid>
                                 </Border>
                             </ListView.Header>
@@ -105,10 +121,10 @@
                                                 <ColumnDefinition Width="112" />
                                             </Grid.ColumnDefinitions>
                                             <Image Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{x:Bind Icon, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" />
+                                            <TextBlock Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" TextAlignment="Left" />
+                                            <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
+                                            <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" TextAlignment="Left" />
                                             <Button Grid.Column="5" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Actions">
                                                 <Button.Flyout>
                                                     <MenuFlyout>
@@ -122,6 +138,122 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
+                </Grid>
+
+                <Grid
+                    x:Name="HistoryPage"
+                    RowSpacing="12"
+                    Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer
+                        x:Name="HistoryFilterScrollViewer"
+                        HorizontalScrollBarVisibility="Auto"
+                        HorizontalScrollMode="Enabled"
+                        VerticalScrollBarVisibility="Disabled"
+                        VerticalScrollMode="Disabled">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="280" />
+                                <ColumnDefinition Width="144" />
+                                <ColumnDefinition Width="144" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                x:Name="HistorySearchTextBox"
+                                PlaceholderText="Search history"
+                                TextChanged="HistoryFilter_Changed" />
+                            <ComboBox
+                                x:Name="HistoryArchitectureComboBox"
+                                Grid.Column="1"
+                                SelectedIndex="0"
+                                SelectionChanged="HistoryFilter_Changed">
+                                <ComboBoxItem Content="All" />
+                                <ComboBoxItem Content="x86" />
+                                <ComboBoxItem Content="x64" />
+                                <ComboBoxItem Content="ARM64EC" />
+                            </ComboBox>
+                            <ComboBox
+                                x:Name="HistoryIgnoredStateComboBox"
+                                Grid.Column="2"
+                                SelectedIndex="0"
+                                SelectionChanged="HistoryFilter_Changed">
+                                <ComboBoxItem Content="All" />
+                                <ComboBoxItem Content="Ignored" />
+                                <ComboBoxItem Content="Not ignored" />
+                            </ComboBox>
+                            <Button
+                                Grid.Column="3"
+                                Click="RefreshHistoryButton_Click"
+                                Content="Refresh" />
+                        </Grid>
+                    </ScrollViewer>
+
+                    <ListView
+                        x:Name="HistoryListView"
+                        Grid.Row="1"
+                        ItemsSource="{x:Bind HistoryRows, Mode=OneWay}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollMode="Enabled"
+                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                        ScrollViewer.VerticalScrollMode="Enabled"
+                        SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="0" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.Header>
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                <Grid Padding="8,0,8,6" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MinWidth="130" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="112" />
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="2*" MinWidth="120" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock HorizontalAlignment="Left" FontWeight="SemiBold" Text="App" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Launches" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Last seen" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="First seen" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Ignored" TextAlignment="Left" />
+                                    <TextBlock Grid.Column="6" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Path" TextAlignment="Left" />
+                                </Grid>
+                            </Border>
+                        </ListView.Header>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:HistoryRow">
+                                <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <Grid Padding="8,6" ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" MinWidth="130" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="112" />
+                                            <ColumnDefinition Width="112" />
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="2*" MinWidth="120" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessName, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind LaunchCount, Mode=OneWay}" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind LastSeen, Mode=OneWay}" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind FirstSeen, Mode=OneWay}" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="5" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind IgnoredText, Mode=OneWay}" TextAlignment="Left" />
+                                        <TextBlock Grid.Column="6" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ExecutablePath, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
                 </Grid>
 
                 <Grid
@@ -145,20 +277,34 @@
                             <Button Grid.Column="1" Click="AddIgnoredButton_Click" Content="Add ignored app" />
                         </Grid>
 
-                        <ListView Grid.Row="2" ItemsSource="{x:Bind IgnoredNames, Mode=OneWay}" SelectionMode="None">
+                        <ListView
+                            x:Name="FilterListView"
+                            Grid.Row="2"
+                            ItemsSource="{x:Bind FilterRows, Mode=OneWay}"
+                            ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                            ScrollViewer.HorizontalScrollMode="Disabled"
+                            ScrollViewer.VerticalScrollBarVisibility="Auto"
+                            ScrollViewer.VerticalScrollMode="Enabled"
+                            SelectionMode="None">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="0" />
+                                </Style>
+                            </ListView.ItemContainerStyle>
                             <ListView.Header>
-                                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Ignored apps" />
+                                <TextBlock HorizontalAlignment="Left" Margin="0,0,0,8" FontWeight="SemiBold" Text="Ignored apps" TextAlignment="Left" />
                             </ListView.Header>
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
+                                <DataTemplate x:DataType="local:FilterRow">
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                                         <Grid Padding="8,6" ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock VerticalAlignment="Center" Text="{x:Bind}" TextTrimming="CharacterEllipsis" />
-                                            <Button Grid.Column="1" Click="RemoveIgnoredButton_Click" Content="Remove" Tag="{x:Bind}" />
+                                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneTime}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                                            <Button Grid.Column="1" HorizontalAlignment="Left" Click="RemoveIgnoredButton_Click" Content="Remove" Tag="{x:Bind Name, Mode=OneTime}" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -172,30 +318,83 @@
                     Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <TextBlock FontSize="18" FontWeight="SemiBold" Text="Settings" />
 
-                    <Grid Grid.Row="1" ColumnSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="240" />
-                        </Grid.ColumnDefinitions>
-                        <ToggleSwitch x:Name="IncludeArm64EcToggle" Header="Include ARM64EC / ARM64X" Toggled="IncludeArm64EcToggle_Toggled" />
-                        <ComboBox
-                            x:Name="NotificationLevelComboBox"
-                            Grid.Column="1"
-                            Header="Notify for"
-                            ItemsSource="{x:Bind NotificationLevelOptions, Mode=OneWay}"
-                            SelectionChanged="NotificationLevelComboBox_SelectionChanged">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="local:NotificationLevelOption">
-                                    <TextBlock Text="{x:Bind DisplayName, Mode=OneTime}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                    </Grid>
+                    <ScrollViewer
+                        x:Name="SettingsScrollViewer"
+                        Grid.Row="1"
+                        HorizontalScrollBarVisibility="Disabled"
+                        HorizontalScrollMode="Disabled"
+                        VerticalScrollBarVisibility="Auto"
+                        VerticalScrollMode="Enabled">
+                        <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
+                            <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="Monitoring" />
+                                <ToggleSwitch
+                                    x:Name="IncludeArm64EcToggle"
+                                    Header="Include ARM64EC / ARM64X"
+                                    Toggled="IncludeArm64EcToggle_Toggled" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="Power-aware refresh pauses while the main window is hidden."
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+
+                            <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="Notifications" />
+                                <ComboBox
+                                    x:Name="NotificationLevelComboBox"
+                                    Header="Notify for"
+                                    Width="240"
+                                    HorizontalAlignment="Left"
+                                    ItemsSource="{x:Bind NotificationLevelOptions, Mode=OneWay}"
+                                    SelectionChanged="NotificationLevelComboBox_SelectionChanged">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="local:NotificationLevelOption">
+                                            <TextBlock Text="{x:Bind DisplayName, Mode=OneTime}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+
+                            <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="Permissions" />
+                                <TextBlock
+                                    x:Name="ElevationStatusTextBlock"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                                <Button
+                                    x:Name="RelaunchAsAdministratorButton"
+                                    Click="RelaunchAsAdministratorButton_Click"
+                                    Content="Restart as administrator" />
+                            </StackPanel>
+
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+
+                            <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="Data" />
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    Text="Launch history is kept for 30 days."
+                                    TextWrapping="WrapWholeWords" />
+                                <Button
+                                    x:Name="ClearHistoryButton"
+                                    Click="ClearHistoryButton_Click"
+                                    Content="Clear history" />
+                                <TextBlock
+                                    x:Name="HistoryDataStatusTextBlock"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </Grid>
         </NavigationView>
