@@ -66,6 +66,8 @@ public sealed partial class MainWindow : Window
 
         AppWindow.SetIcon("Assets/AppIcon.ico");
         AppWindow.Resize(_windowSize);
+        UpdateProcessStatusText();
+        UpdateHistoryStatusText();
 
         _refreshTimer.Interval = TimeSpan.FromSeconds(3);
         _refreshTimer.Tick += RefreshTimer_Tick;
@@ -545,6 +547,7 @@ public sealed partial class MainWindow : Window
         }
 
         MoveRowsIntoSortedOrder(diff.SortedRows);
+        UpdateProcessStatusText();
     }
 
     private void MoveRowsIntoSortedOrder(IReadOnlyList<CompatibilityProcessInfo> sortedRows)
@@ -631,6 +634,34 @@ public sealed partial class MainWindow : Window
         }
 
         MoveHistoryRowsIntoSortedOrder(summaries);
+        UpdateHistoryStatusText();
+    }
+
+    private void UpdateProcessStatusText()
+    {
+        int count = Rows.Count;
+        ProcessStatusTextBlock.Text = count == 1
+            ? "1 active process"
+            : string.Concat(count.ToString(), " active processes");
+    }
+
+    private void UpdateHistoryStatusText()
+    {
+        int visibleCount = HistoryRows.Count;
+        int totalCount = _cachedHistorySummaries.Count;
+        if (visibleCount == totalCount)
+        {
+            HistoryStatusTextBlock.Text = visibleCount == 1
+                ? "1 history entry"
+                : string.Concat(visibleCount.ToString(), " history entries");
+            return;
+        }
+
+        HistoryStatusTextBlock.Text = string.Concat(
+            visibleCount.ToString(),
+            " of ",
+            totalCount.ToString(),
+            " history entries shown");
     }
 
     private void MoveHistoryRowsIntoSortedOrder(IReadOnlyList<LaunchHistorySummary> summaries)

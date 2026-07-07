@@ -111,6 +111,34 @@ public sealed class MainWindowLayoutTests
     }
 
     [TestMethod]
+    public void ProcessesAndHistoryUseFluentListPresentation()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+
+        string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+
+        StringAssert.Contains(xaml, "x:Name=\"ProcessHeader\"");
+        StringAssert.Contains(xaml, "x:Name=\"HistoryHeader\"");
+        StringAssert.Contains(xaml, "x:Name=\"ProcessStatusTextBlock\"");
+        StringAssert.Contains(xaml, "x:Name=\"HistoryStatusTextBlock\"");
+        StringAssert.Contains(xaml, "x:Name=\"HistoryToolbar\"");
+        StringAssert.Contains(xaml, "x:Key=\"RowCardStyle\"");
+        StringAssert.Contains(xaml, "x:Key=\"ArchitectureBadgeStyle\"");
+        StringAssert.Contains(xaml, "x:Key=\"DetailsPanelStyle\"");
+        StringAssert.Contains(xaml, "x:Key=\"IconCommandButtonStyle\"");
+        StringAssert.Contains(xaml, "CardBackgroundFillColorDefaultBrush");
+        StringAssert.Contains(xaml, "CardStrokeColorDefaultBrush");
+        StringAssert.Contains(xaml, "CornerRadius=\"8\"");
+        StringAssert.Contains(processList, "x:Name=\"ProcessDetailsPanel\"");
+        StringAssert.Contains(historyList, "x:Name=\"HistoryDetailsPanel\"");
+        Assert.IsGreaterThanOrEqualTo(
+            6,
+            CountOccurrences(xaml, "ToolTipService.ToolTip="),
+            "Icon refresh, copy, and actions commands should expose tooltips.");
+    }
+
+    [TestMethod]
     public void MainWindowListRowsDoNotUseDefaultItemPadding()
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));

@@ -13,6 +13,55 @@
     </Window.SystemBackdrop>
 
     <Grid>
+        <Grid.Resources>
+            <Style x:Key="PageTitleTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="20" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </Style>
+            <Style x:Key="PageStatusTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Style>
+            <Style x:Key="RowCardStyle" TargetType="Border">
+                <Setter Property="Margin" Value="0,0,0,8" />
+                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+            <Style x:Key="ArchitectureBadgeStyle" TargetType="Border">
+                <Setter Property="Padding" Value="7,3" />
+                <Setter Property="Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+                <Setter Property="CornerRadius" Value="4" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+            <Style x:Key="DetailsPanelStyle" TargetType="Border">
+                <Setter Property="Margin" Value="48,0,12,12" />
+                <Setter Property="Padding" Value="12" />
+                <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+            <Style x:Key="DetailLabelTextStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextAlignment" Value="Left" />
+            </Style>
+            <Style x:Key="DetailValueTextStyle" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="TextAlignment" Value="Left" />
+            </Style>
+            <Style x:Key="IconCommandButtonStyle" TargetType="Button">
+                <Setter Property="MinWidth" Value="34" />
+                <Setter Property="Width" Value="34" />
+                <Setter Property="Height" Value="32" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -65,13 +114,29 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Grid ColumnSpacing="8">
+                        <Grid x:Name="ProcessHeader" ColumnSpacing="12">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="SemiBold" Text="Compatibility-mode processes" />
-                            <Button Grid.Column="1" Click="RefreshButton_Click" Content="Refresh" />
+                            <StackPanel Spacing="2">
+                                <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="Compatibility-mode processes" />
+                                <TextBlock
+                                    x:Name="ProcessStatusTextBlock"
+                                    Style="{StaticResource PageStatusTextStyle}"
+                                    Text="No active processes" />
+                            </StackPanel>
+                            <Button
+                                Grid.Column="1"
+                                AutomationProperties.Name="Refresh processes"
+                                Click="RefreshButton_Click"
+                                Style="{StaticResource IconCommandButtonStyle}"
+                                ToolTipService.ToolTip="Refresh processes">
+                                <FontIcon
+                                    FontFamily="Segoe Fluent Icons"
+                                    FontSize="14"
+                                    Glyph="&#xE72C;" />
+                            </Button>
                         </Grid>
 
                         <ListView
@@ -91,10 +156,10 @@
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="local:ProcessRow">
-                                    <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <Border Style="{StaticResource RowCardStyle}">
                                         <Expander HorizontalAlignment="Stretch">
                                             <Expander.Header>
-                                                <Grid ColumnSpacing="12">
+                                                <Grid MinHeight="48" ColumnSpacing="12">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="36" />
                                                         <ColumnDefinition Width="*" />
@@ -114,10 +179,7 @@
                                                     <Border
                                                         x:Name="ProcessArchitectureBadge"
                                                         Grid.Column="2"
-                                                        Padding="6,2"
-                                                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                                                        VerticalAlignment="Center"
-                                                        CornerRadius="4">
+                                                        Style="{StaticResource ArchitectureBadgeStyle}">
                                                         <TextBlock FontSize="12" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
                                                     </Border>
                                                     <TextBlock
@@ -129,62 +191,84 @@
                                                         TextAlignment="Left" />
                                                 </Grid>
                                             </Expander.Header>
-                                            <StackPanel Padding="48,0,8,10" Spacing="8">
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="84" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="PID" TextAlignment="Left" />
-                                                    <TextBlock Grid.Column="1" Text="{x:Bind ProcessId, Mode=OneWay}" TextAlignment="Left" />
+                                            <Border x:Name="ProcessDetailsPanel" Style="{StaticResource DetailsPanelStyle}">
+                                                <StackPanel Spacing="8">
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="84" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="PID" />
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind ProcessId, Mode=OneWay}" />
+                                                        <Button
+                                                            x:Name="CopyProcessIdButton"
+                                                            Grid.Column="2"
+                                                            AutomationProperties.Name="Copy process PID"
+                                                            Click="CopyValueButton_Click"
+                                                            Style="{StaticResource IconCommandButtonStyle}"
+                                                            Tag="{x:Bind ProcessId, Mode=OneWay}"
+                                                            ToolTipService.ToolTip="Copy process PID">
+                                                            <FontIcon
+                                                                FontFamily="Segoe Fluent Icons"
+                                                                FontSize="14"
+                                                                Glyph="&#xE8C8;" />
+                                                        </Button>
+                                                    </Grid>
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="84" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="CPU time" />
+                                                        <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind CpuTime, Mode=OneWay}" />
+                                                    </Grid>
+                                                    <Grid ColumnSpacing="8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="84" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="Path" />
+                                                        <TextBlock
+                                                            Grid.Column="1"
+                                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                            IsTextSelectionEnabled="True"
+                                                            Text="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                            TextAlignment="Left"
+                                                            TextWrapping="Wrap"
+                                                            ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                                        <Button
+                                                            x:Name="CopyProcessPathButton"
+                                                            Grid.Column="2"
+                                                            AutomationProperties.Name="Copy process path"
+                                                            Click="CopyValueButton_Click"
+                                                            Style="{StaticResource IconCommandButtonStyle}"
+                                                            Tag="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                            ToolTipService.ToolTip="Copy process path">
+                                                            <FontIcon
+                                                                FontFamily="Segoe Fluent Icons"
+                                                                FontSize="14"
+                                                                Glyph="&#xE8C8;" />
+                                                        </Button>
+                                                    </Grid>
                                                     <Button
-                                                        x:Name="CopyProcessIdButton"
-                                                        Grid.Column="2"
-                                                        Click="CopyValueButton_Click"
-                                                        Content="Copy"
-                                                        Tag="{x:Bind ProcessId, Mode=OneWay}" />
-                                                </Grid>
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="84" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="CPU time" TextAlignment="Left" />
-                                                    <TextBlock Grid.Column="1" Text="{x:Bind CpuTime, Mode=OneWay}" TextAlignment="Left" />
-                                                </Grid>
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="84" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Path" TextAlignment="Left" />
-                                                    <TextBlock
-                                                        Grid.Column="1"
-                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                        IsTextSelectionEnabled="True"
-                                                        Text="{x:Bind ExecutablePath, Mode=OneWay}"
-                                                        TextAlignment="Left"
-                                                        TextWrapping="Wrap"
-                                                        ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                                    <Button
-                                                        x:Name="CopyProcessPathButton"
-                                                        Grid.Column="2"
-                                                        Click="CopyValueButton_Click"
-                                                        Content="Copy"
-                                                        Tag="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                                </Grid>
-                                                <Button HorizontalAlignment="Left" Content="Actions">
-                                                    <Button.Flyout>
-                                                        <MenuFlyout>
-                                                            <MenuFlyoutItem Click="TerminateMenuItem_Click" Tag="{x:Bind}" Text="End process" />
-                                                            <MenuFlyoutItem Click="IgnoreProcessMenuItem_Click" Tag="{x:Bind}" Text="Ignore process" />
-                                                        </MenuFlyout>
-                                                    </Button.Flyout>
-                                                </Button>
-                                            </StackPanel>
+                                                        AutomationProperties.Name="Process actions"
+                                                        Style="{StaticResource IconCommandButtonStyle}"
+                                                        ToolTipService.ToolTip="Process actions">
+                                                        <FontIcon
+                                                            FontFamily="Segoe Fluent Icons"
+                                                            FontSize="14"
+                                                            Glyph="&#xE712;" />
+                                                        <Button.Flyout>
+                                                            <MenuFlyout>
+                                                                <MenuFlyoutItem Click="TerminateMenuItem_Click" Tag="{x:Bind}" Text="End process" />
+                                                                <MenuFlyoutItem Click="IgnoreProcessMenuItem_Click" Tag="{x:Bind}" Text="Ignore process" />
+                                                            </MenuFlyout>
+                                                        </Button.Flyout>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Border>
                                         </Expander>
                                     </Border>
                                 </DataTemplate>
@@ -198,59 +282,89 @@
                     Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
+                    <Grid x:Name="HistoryHeader" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Spacing="2">
+                            <TextBlock Style="{StaticResource PageTitleTextStyle}" Text="Launch history" />
+                            <TextBlock
+                                x:Name="HistoryStatusTextBlock"
+                                Style="{StaticResource PageStatusTextStyle}"
+                                Text="No history entries" />
+                        </StackPanel>
+                        <Button
+                            Grid.Column="1"
+                            AutomationProperties.Name="Refresh history"
+                            Click="RefreshHistoryButton_Click"
+                            Style="{StaticResource IconCommandButtonStyle}"
+                            ToolTipService.ToolTip="Refresh history">
+                            <FontIcon
+                                FontFamily="Segoe Fluent Icons"
+                                FontSize="14"
+                                Glyph="&#xE72C;" />
+                        </Button>
+                    </Grid>
+
                     <ScrollViewer
                         x:Name="HistoryFilterScrollViewer"
+                        Grid.Row="1"
                         HorizontalScrollBarVisibility="Auto"
                         HorizontalScrollMode="Enabled"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <Grid ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="280" />
-                                <ColumnDefinition Width="144" />
-                                <ColumnDefinition Width="144" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox
-                                x:Name="HistorySearchTextBox"
-                                PlaceholderText="Search history"
-                                TextChanged="HistoryFilter_Changed" />
-                            <ComboBox
-                                x:Name="HistoryArchitectureComboBox"
-                                Grid.Column="1"
-                                SelectedIndex="0"
-                                SelectedValuePath="Tag"
-                                SelectionChanged="HistoryFilter_Changed"
-                                x:SuppressXamlTrimWarnings="True">
-                                <ComboBoxItem Content="All" Tag="All" />
-                                <ComboBoxItem Content="x86" Tag="x86" />
-                                <ComboBoxItem Content="x64" Tag="x64" />
-                                <ComboBoxItem Content="ARM64EC" Tag="ARM64EC" />
-                            </ComboBox>
-                            <ComboBox
-                                x:Name="HistoryIgnoredStateComboBox"
-                                Grid.Column="2"
-                                SelectedIndex="0"
-                                SelectedValuePath="Tag"
-                                SelectionChanged="HistoryFilter_Changed"
-                                x:SuppressXamlTrimWarnings="True">
-                                <ComboBoxItem Content="All" Tag="All" />
-                                <ComboBoxItem Content="Ignored" Tag="Ignored" />
-                                <ComboBoxItem Content="Not ignored" Tag="Not ignored" />
-                            </ComboBox>
-                            <Button
-                                Grid.Column="3"
-                                Click="RefreshHistoryButton_Click"
-                                Content="Refresh" />
-                        </Grid>
+                        <Border
+                            x:Name="HistoryToolbar"
+                            Padding="10"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="280" />
+                                    <ColumnDefinition Width="144" />
+                                    <ColumnDefinition Width="144" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox
+                                    x:Name="HistorySearchTextBox"
+                                    PlaceholderText="Search history"
+                                    TextChanged="HistoryFilter_Changed" />
+                                <ComboBox
+                                    x:Name="HistoryArchitectureComboBox"
+                                    Grid.Column="1"
+                                    SelectedIndex="0"
+                                    SelectedValuePath="Tag"
+                                    SelectionChanged="HistoryFilter_Changed"
+                                    x:SuppressXamlTrimWarnings="True">
+                                    <ComboBoxItem Content="All" Tag="All" />
+                                    <ComboBoxItem Content="x86" Tag="x86" />
+                                    <ComboBoxItem Content="x64" Tag="x64" />
+                                    <ComboBoxItem Content="ARM64EC" Tag="ARM64EC" />
+                                </ComboBox>
+                                <ComboBox
+                                    x:Name="HistoryIgnoredStateComboBox"
+                                    Grid.Column="2"
+                                    SelectedIndex="0"
+                                    SelectedValuePath="Tag"
+                                    SelectionChanged="HistoryFilter_Changed"
+                                    x:SuppressXamlTrimWarnings="True">
+                                    <ComboBoxItem Content="All" Tag="All" />
+                                    <ComboBoxItem Content="Ignored" Tag="Ignored" />
+                                    <ComboBoxItem Content="Not ignored" Tag="Not ignored" />
+                                </ComboBox>
+                            </Grid>
+                        </Border>
                     </ScrollViewer>
 
                     <ListView
                         x:Name="HistoryListView"
-                        Grid.Row="1"
+                        Grid.Row="2"
                         ItemsSource="{x:Bind HistoryRows, Mode=OneWay}"
                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                         ScrollViewer.HorizontalScrollMode="Disabled"
@@ -265,10 +379,10 @@
                         </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:HistoryRow">
-                                <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                <Border Style="{StaticResource RowCardStyle}">
                                     <Expander HorizontalAlignment="Stretch">
                                         <Expander.Header>
-                                            <Grid ColumnSpacing="8">
+                                            <Grid MinHeight="48" ColumnSpacing="8">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="36" />
                                                     <ColumnDefinition Width="*" />
@@ -289,10 +403,7 @@
                                                 <Border
                                                     x:Name="HistoryArchitectureBadge"
                                                     Grid.Column="2"
-                                                    Padding="6,2"
-                                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                                                    VerticalAlignment="Center"
-                                                    CornerRadius="4">
+                                                    Style="{StaticResource ArchitectureBadgeStyle}">
                                                     <TextBlock FontSize="12" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
                                                 </Border>
                                                 <TextBlock
@@ -310,57 +421,74 @@
                                                     TextAlignment="Left" />
                                             </Grid>
                                         </Expander.Header>
-                                        <StackPanel Padding="48,0,8,10" Spacing="8">
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="84" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="PID" TextAlignment="Left" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind LastProcessId, Mode=OneWay}" TextAlignment="Left" />
-                                                <Button
-                                                    x:Name="CopyHistoryProcessIdButton"
-                                                    Grid.Column="2"
-                                                    Click="CopyValueButton_Click"
-                                                    Content="Copy"
-                                                    Tag="{x:Bind LastProcessId, Mode=OneWay}" />
-                                            </Grid>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="84" />
-                                                    <ColumnDefinition Width="*" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Seen" TextAlignment="Left" />
-                                                <TextBlock
-                                                    x:Name="HistoryMetaLine"
-                                                    Grid.Column="1"
-                                                    Text="{x:Bind TimeRangeLine, Mode=OneWay}"
-                                                    TextAlignment="Left" />
-                                            </Grid>
-                                            <Grid ColumnSpacing="8">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="84" />
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Path" TextAlignment="Left" />
-                                                <TextBlock
-                                                    Grid.Column="1"
-                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                    IsTextSelectionEnabled="True"
-                                                    Text="{x:Bind ExecutablePath, Mode=OneWay}"
-                                                    TextAlignment="Left"
-                                                    TextWrapping="Wrap"
-                                                    ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                                <Button
-                                                    x:Name="CopyHistoryPathButton"
-                                                    Grid.Column="2"
-                                                    Click="CopyValueButton_Click"
-                                                    Content="Copy"
-                                                    Tag="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                            </Grid>
-                                        </StackPanel>
+                                        <Border x:Name="HistoryDetailsPanel" Style="{StaticResource DetailsPanelStyle}">
+                                            <StackPanel Spacing="8">
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="PID" />
+                                                    <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind LastProcessId, Mode=OneWay}" />
+                                                    <Button
+                                                        x:Name="CopyHistoryProcessIdButton"
+                                                        Grid.Column="2"
+                                                        AutomationProperties.Name="Copy history PID"
+                                                        Click="CopyValueButton_Click"
+                                                        Style="{StaticResource IconCommandButtonStyle}"
+                                                        Tag="{x:Bind LastProcessId, Mode=OneWay}"
+                                                        ToolTipService.ToolTip="Copy history PID">
+                                                        <FontIcon
+                                                            FontFamily="Segoe Fluent Icons"
+                                                            FontSize="14"
+                                                            Glyph="&#xE8C8;" />
+                                                    </Button>
+                                                </Grid>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="Seen" />
+                                                    <TextBlock
+                                                        x:Name="HistoryMetaLine"
+                                                        Grid.Column="1"
+                                                        Style="{StaticResource DetailValueTextStyle}"
+                                                        Text="{x:Bind TimeRangeLine, Mode=OneWay}"
+                                                        TextAlignment="Left" />
+                                                </Grid>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="Path" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                        IsTextSelectionEnabled="True"
+                                                        Text="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                        TextAlignment="Left"
+                                                        TextWrapping="Wrap"
+                                                        ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                                    <Button
+                                                        x:Name="CopyHistoryPathButton"
+                                                        Grid.Column="2"
+                                                        AutomationProperties.Name="Copy history path"
+                                                        Click="CopyValueButton_Click"
+                                                        Style="{StaticResource IconCommandButtonStyle}"
+                                                        Tag="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                        ToolTipService.ToolTip="Copy history path">
+                                                        <FontIcon
+                                                            FontFamily="Segoe Fluent Icons"
+                                                            FontSize="14"
+                                                            Glyph="&#xE8C8;" />
+                                                    </Button>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
                                     </Expander>
                                 </Border>
                             </DataTemplate>
