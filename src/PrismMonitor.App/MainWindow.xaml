@@ -47,7 +47,7 @@
             </Style>
             <Style x:Key="DetailValueButtonStyle" TargetType="Button">
                 <Setter Property="MinHeight" Value="28" />
-                <Setter Property="Padding" Value="0,2" />
+                <Setter Property="Padding" Value="0,2,6,2" />
                 <Setter Property="HorizontalAlignment" Value="Left" />
                 <Setter Property="HorizontalContentAlignment" Value="Left" />
                 <Setter Property="Background" Value="Transparent" />
@@ -206,10 +206,22 @@
                                                             Grid.Column="1"
                                                             AutomationProperties.Name="Copy process PID"
                                                             Click="CopyValueButton_Click"
-                                                            Content="{x:Bind ProcessId, Mode=OneWay}"
                                                             Style="{StaticResource DetailValueButtonStyle}"
                                                             Tag="{x:Bind ProcessId, Mode=OneWay}"
-                                                            ToolTipService.ToolTip="Copy process PID" />
+                                                            ToolTipService.ToolTip="Copy process PID">
+                                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                <TextBlock
+                                                                    x:Name="CopyProcessIdText"
+                                                                    Text="{x:Bind ProcessId, Mode=OneWay}"
+                                                                    TextAlignment="Left" />
+                                                                <FontIcon
+                                                                    x:Name="CopyProcessIdGlyph"
+                                                                    FontFamily="Segoe Fluent Icons"
+                                                                    FontSize="11"
+                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                    Glyph="&#xE8C8;" />
+                                                            </StackPanel>
+                                                        </Button>
                                                     </Grid>
                                                     <Grid ColumnSpacing="8">
                                                         <Grid.ColumnDefinitions>
@@ -416,10 +428,22 @@
                                                         Grid.Column="1"
                                                         AutomationProperties.Name="Copy history PID"
                                                         Click="CopyValueButton_Click"
-                                                        Content="{x:Bind LastProcessId, Mode=OneWay}"
                                                         Style="{StaticResource DetailValueButtonStyle}"
                                                         Tag="{x:Bind LastProcessId, Mode=OneWay}"
-                                                        ToolTipService.ToolTip="Copy history PID" />
+                                                        ToolTipService.ToolTip="Copy history PID">
+                                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                                            <TextBlock
+                                                                x:Name="CopyHistoryProcessIdText"
+                                                                Text="{x:Bind LastProcessId, Mode=OneWay}"
+                                                                TextAlignment="Left" />
+                                                            <FontIcon
+                                                                x:Name="CopyHistoryProcessIdGlyph"
+                                                                FontFamily="Segoe Fluent Icons"
+                                                                FontSize="11"
+                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                Glyph="&#xE8C8;" />
+                                                        </StackPanel>
+                                                    </Button>
                                                 </Grid>
                                                 <Grid ColumnSpacing="8">
                                                     <Grid.ColumnDefinitions>

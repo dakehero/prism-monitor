@@ -10,7 +10,7 @@ Make the Processes and History pages feel like modern WinUI utility surfaces ins
 - Use Fluent-style hierarchy: clear page title, subdued status text, compact command buttons, rounded list rows, and inline details.
 - Keep default rows glanceable: icon, name, architecture, and one summary line.
 - Keep secondary details hidden until expansion: PID, CPU time, seen timestamps, path, and process actions.
-- Make copy behavior value-based: PID values are buttons that copy themselves; paths stay selectable instead of showing repeated copy buttons.
+- Make copy behavior value-based: PID values are buttons that copy themselves with a subtle inline copy glyph; paths stay selectable instead of showing repeated copy buttons.
 - Prefer system theme resources and built-in icon glyphs over custom color palettes or heavy decoration.
 - Keep rows stable during refresh; do not reintroduce table headers, equal-width columns, or full-list flicker.
 

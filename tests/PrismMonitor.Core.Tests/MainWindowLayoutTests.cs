@@ -97,6 +97,8 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(processList, "x:Name=\"CopyProcessIdButton\"");
         StringAssert.Contains(processList, "Click=\"CopyValueButton_Click\"");
         StringAssert.Contains(processList, "Tag=\"{x:Bind ProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessIdText\"");
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessIdGlyph\"");
 
         StringAssert.Contains(historyList, "Source=\"{x:Bind Icon, Mode=OneWay}\"");
         StringAssert.Contains(historyList, "x:Name=\"HistoryArchitectureBadge\"");
@@ -104,6 +106,8 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdButton\"");
         StringAssert.Contains(historyList, "Click=\"CopyValueButton_Click\"");
         StringAssert.Contains(historyList, "Tag=\"{x:Bind LastProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdText\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdGlyph\"");
     }
 
     [TestMethod]
@@ -155,9 +159,11 @@ public sealed class MainWindowLayoutTests
             "Process details should expose direct actions instead of a more menu.");
 
         StringAssert.Contains(processList, "x:Name=\"CopyProcessIdButton\"");
-        StringAssert.Contains(processList, "Content=\"{x:Bind ProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "Text=\"{x:Bind ProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessIdGlyph\"");
         StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdButton\"");
-        StringAssert.Contains(historyList, "Content=\"{x:Bind LastProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "Text=\"{x:Bind LastProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdGlyph\"");
         StringAssert.Contains(processList, "x:Name=\"EndProcessButton\"");
         StringAssert.Contains(processList, "x:Name=\"IgnoreProcessButton\"");
     }
