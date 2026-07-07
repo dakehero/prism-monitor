@@ -13,6 +13,14 @@ Prism Monitor is a Windows ARM64 tray app for spotting compatibility-mode deskto
 - Toast notification for newly detected compatibility-mode processes, with quick actions to end or ignore
 - Uses public Windows APIs and avoids CPU sampling
 
+## Install
+
+Prism Monitor is available on the Microsoft Store:
+
+[Install prism-monitor from Microsoft Store](https://apps.microsoft.com/detail/9NHJX7QKXW8F?hl=neutral&gl=SG&ocid=pdpshare)
+
+The Store package is the recommended installation path for normal use.
+
 ## Build
 
 ```powershell
@@ -34,9 +42,9 @@ Run Prism Monitor from Start or another interactive Windows shell. The app start
 - Right-click the tray icon to open the tray menu, then choose `Exit`.
 - Use the main window to end a process or add/remove ignored process names.
 
-## MSIX package
+## Development MSIX package
 
-Release builds also publish a signed MSIX package for Windows ARM64. The current development package uses a self-signed certificate, so use the generated `Install.ps1` script from the release zip to trust the certificate and install the package.
+Release builds also publish a signed MSIX package for Windows ARM64. Development packages use a self-signed certificate, so use the generated `Install.ps1` script from the release zip only when testing local or GitHub release builds.
 
 After installation, launch Prism Monitor from Start or another interactive Windows shell. The app runs without elevation by default.
 
