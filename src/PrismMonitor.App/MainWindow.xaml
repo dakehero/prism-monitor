@@ -310,48 +310,43 @@
                         HorizontalScrollMode="Enabled"
                         VerticalScrollBarVisibility="Disabled"
                         VerticalScrollMode="Disabled">
-                        <Border
+                        <Grid
                             x:Name="HistoryToolbar"
-                            Padding="10"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8">
-                            <Grid ColumnSpacing="8">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="280" />
-                                    <ColumnDefinition Width="144" />
-                                    <ColumnDefinition Width="144" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox
-                                    x:Name="HistorySearchTextBox"
-                                    PlaceholderText="Search history"
-                                    TextChanged="HistoryFilter_Changed" />
-                                <ComboBox
-                                    x:Name="HistoryArchitectureComboBox"
-                                    Grid.Column="1"
-                                    SelectedIndex="0"
-                                    SelectedValuePath="Tag"
-                                    SelectionChanged="HistoryFilter_Changed"
-                                    x:SuppressXamlTrimWarnings="True">
-                                    <ComboBoxItem Content="All" Tag="All" />
-                                    <ComboBoxItem Content="x86" Tag="x86" />
-                                    <ComboBoxItem Content="x64" Tag="x64" />
-                                    <ComboBoxItem Content="ARM64EC" Tag="ARM64EC" />
-                                </ComboBox>
-                                <ComboBox
-                                    x:Name="HistoryIgnoredStateComboBox"
-                                    Grid.Column="2"
-                                    SelectedIndex="0"
-                                    SelectedValuePath="Tag"
-                                    SelectionChanged="HistoryFilter_Changed"
-                                    x:SuppressXamlTrimWarnings="True">
-                                    <ComboBoxItem Content="All" Tag="All" />
-                                    <ComboBoxItem Content="Ignored" Tag="Ignored" />
-                                    <ComboBoxItem Content="Not ignored" Tag="Not ignored" />
-                                </ComboBox>
-                            </Grid>
-                        </Border>
+                            Margin="0,2,0,2"
+                            ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="280" />
+                                <ColumnDefinition Width="144" />
+                                <ColumnDefinition Width="144" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox
+                                x:Name="HistorySearchTextBox"
+                                PlaceholderText="Search history"
+                                TextChanged="HistoryFilter_Changed" />
+                            <ComboBox
+                                x:Name="HistoryArchitectureComboBox"
+                                Grid.Column="1"
+                                SelectedIndex="0"
+                                SelectedValuePath="Tag"
+                                SelectionChanged="HistoryFilter_Changed"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All" Tag="All" />
+                                <ComboBoxItem Content="x86" Tag="x86" />
+                                <ComboBoxItem Content="x64" Tag="x64" />
+                                <ComboBoxItem Content="ARM64EC" Tag="ARM64EC" />
+                            </ComboBox>
+                            <ComboBox
+                                x:Name="HistoryIgnoredStateComboBox"
+                                Grid.Column="2"
+                                SelectedIndex="0"
+                                SelectedValuePath="Tag"
+                                SelectionChanged="HistoryFilter_Changed"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All" Tag="All" />
+                                <ComboBoxItem Content="Ignored" Tag="Ignored" />
+                                <ComboBoxItem Content="Not ignored" Tag="Not ignored" />
+                            </ComboBox>
+                        </Grid>
                     </ScrollViewer>
 
                     <ListView

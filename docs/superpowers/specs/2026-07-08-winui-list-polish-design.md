@@ -25,7 +25,7 @@ Make the Processes and History pages feel like modern WinUI utility surfaces ins
 ## History Page
 
 - Header contains the page title, a live count/status line, and an icon-only refresh command.
-- Filters live in a compact toolbar under the header. The toolbar is visually related to the page but does not dominate the list.
+- Filters live in a compact unframed toolbar under the header. The list rows carry the card treatment; filters should not add another framed card above them.
 - Each history row mirrors process row treatment: icon, name, architecture badge, launch summary, and inline expandable details.
 - PID is directly clickable/copyable; path remains selectable text without a repeated copy button.
 

@@ -45,6 +45,23 @@ public sealed class MainWindowLayoutTests
     }
 
     [TestMethod]
+    public void HistoryFilterUsesUnframedToolbar()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+        string historyFilter = SliceBetween(xaml, "x:Name=\"HistoryFilterScrollViewer\"", "x:Name=\"HistoryListView\"");
+
+        StringAssert.Contains(historyFilter, "<Grid");
+        StringAssert.Contains(historyFilter, "x:Name=\"HistoryToolbar\"");
+        Assert.IsFalse(
+            historyFilter.Contains("<Border", StringComparison.Ordinal),
+            "History filters should be an unframed toolbar, not another card nested above card rows.");
+        Assert.IsFalse(
+            historyFilter.Contains("CardBackgroundFillColorDefaultBrush", StringComparison.Ordinal)
+                || historyFilter.Contains("CardStrokeColorDefaultBrush", StringComparison.Ordinal),
+            "History filters should not reuse card styling reserved for list rows.");
+    }
+
+    [TestMethod]
     public void MainWindowListDetailsRowsUseLeftAlignedText()
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
@@ -129,7 +146,7 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(xaml, "x:Key=\"IconCommandButtonStyle\"");
         StringAssert.Contains(xaml, "CardBackgroundFillColorDefaultBrush");
         StringAssert.Contains(xaml, "CardStrokeColorDefaultBrush");
-        StringAssert.Contains(xaml, "CornerRadius=\"8\"");
+        StringAssert.Contains(xaml, "<Setter Property=\"CornerRadius\" Value=\"8\" />");
         StringAssert.Contains(processList, "x:Name=\"ProcessDetailsPanel\"");
         StringAssert.Contains(historyList, "x:Name=\"HistoryDetailsPanel\"");
         Assert.IsGreaterThanOrEqualTo(
