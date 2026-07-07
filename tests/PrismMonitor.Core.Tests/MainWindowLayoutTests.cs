@@ -95,19 +95,15 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(processList, "x:Name=\"ProcessArchitectureBadge\"");
         StringAssert.Contains(processList, "x:Name=\"ProcessSummaryLine\"");
         StringAssert.Contains(processList, "x:Name=\"CopyProcessIdButton\"");
-        StringAssert.Contains(processList, "x:Name=\"CopyProcessPathButton\"");
         StringAssert.Contains(processList, "Click=\"CopyValueButton_Click\"");
         StringAssert.Contains(processList, "Tag=\"{x:Bind ProcessId, Mode=OneWay}\"");
-        StringAssert.Contains(processList, "Tag=\"{x:Bind ExecutablePath, Mode=OneWay}\"");
 
         StringAssert.Contains(historyList, "Source=\"{x:Bind Icon, Mode=OneWay}\"");
         StringAssert.Contains(historyList, "x:Name=\"HistoryArchitectureBadge\"");
         StringAssert.Contains(historyList, "x:Name=\"HistorySummaryLine\"");
         StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdButton\"");
-        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryPathButton\"");
         StringAssert.Contains(historyList, "Click=\"CopyValueButton_Click\"");
         StringAssert.Contains(historyList, "Tag=\"{x:Bind LastProcessId, Mode=OneWay}\"");
-        StringAssert.Contains(historyList, "Tag=\"{x:Bind ExecutablePath, Mode=OneWay}\"");
     }
 
     [TestMethod]
@@ -125,7 +121,7 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(xaml, "x:Name=\"HistoryToolbar\"");
         StringAssert.Contains(xaml, "x:Key=\"RowCardStyle\"");
         StringAssert.Contains(xaml, "x:Key=\"ArchitectureBadgeStyle\"");
-        StringAssert.Contains(xaml, "x:Key=\"DetailsPanelStyle\"");
+        StringAssert.Contains(xaml, "x:Key=\"DetailValueButtonStyle\"");
         StringAssert.Contains(xaml, "x:Key=\"IconCommandButtonStyle\"");
         StringAssert.Contains(xaml, "CardBackgroundFillColorDefaultBrush");
         StringAssert.Contains(xaml, "CardStrokeColorDefaultBrush");
@@ -136,6 +132,34 @@ public sealed class MainWindowLayoutTests
             6,
             CountOccurrences(xaml, "ToolTipService.ToolTip="),
             "Icon refresh, copy, and actions commands should expose tooltips.");
+    }
+
+    [TestMethod]
+    public void ExpandedDetailsUseInlineCopyValuesAndDirectProcessActions()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+
+        string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+
+        Assert.IsFalse(
+            xaml.Contains("x:Key=\"DetailsPanelStyle\"", StringComparison.Ordinal),
+            "Expanded details should be inline content, not a nested card style.");
+        Assert.IsFalse(
+            xaml.Contains("CopyProcessPathButton", StringComparison.Ordinal)
+                || xaml.Contains("CopyHistoryPathButton", StringComparison.Ordinal),
+            "Path copy should not be a repeated standalone copy button.");
+        Assert.IsFalse(
+            processList.Contains("Process actions", StringComparison.Ordinal)
+                || processList.Contains("<Button.Flyout>", StringComparison.Ordinal),
+            "Process details should expose direct actions instead of a more menu.");
+
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessIdButton\"");
+        StringAssert.Contains(processList, "Content=\"{x:Bind ProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdButton\"");
+        StringAssert.Contains(historyList, "Content=\"{x:Bind LastProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "x:Name=\"EndProcessButton\"");
+        StringAssert.Contains(processList, "x:Name=\"IgnoreProcessButton\"");
     }
 
     [TestMethod]

@@ -4,7 +4,7 @@
 
 **Goal:** Polish the Processes and History pages into a calmer WinUI list/details experience.
 
-**Architecture:** Keep the existing `ListView` + `Expander` implementation and observable row updates. Add page-level status text, shared Fluent-inspired row resources, compact icon commands, and details panels without changing process detection or history storage behavior.
+**Architecture:** Keep the existing `ListView` + `Expander` implementation and observable row updates. Add page-level status text, shared Fluent-inspired row resources, compact commands, inline detail rows, and direct process actions without changing process detection or history storage behavior.
 
 **Tech Stack:** .NET 10, C#, WinUI 3, Windows App SDK, ARM64 Release build.
 
@@ -73,19 +73,19 @@ Run the same layout test filter and keep implementing until it passes after Task
 
 **Interfaces:**
 - Consumes: existing `ProcessRow` and `HistoryRow` properties.
-- Produces: polished row templates with the same data and commands.
+- Produces: polished row templates with the same data, inline copy values, and direct process commands.
 
 - [x] **Step 1: Add shared resources**
 
-Add XAML resources for section titles, caption text, row cards, architecture badges, details panels, and compact icon command buttons.
+Add XAML resources for section titles, caption text, row cards, architecture badges, inline copy values, and compact icon command buttons.
 
 - [x] **Step 2: Polish process rows**
 
-Wrap rows in rounded backplates, move expanded metadata into `ProcessDetailsPanel`, and change refresh/copy/actions to compact icon commands with tooltips.
+Wrap rows in rounded backplates, keep expanded metadata inline, make PID directly copyable, and expose direct `End process` and `Ignore` buttons.
 
 - [x] **Step 3: Polish history rows**
 
-Mirror the process treatment for `HistoryDetailsPanel`, row cards, badges, and copy commands.
+Mirror the process treatment for `HistoryDetailsPanel`, row cards, badges, and direct PID copy values. Keep paths selectable instead of adding repeated copy buttons.
 
 - [x] **Step 4: Run targeted tests**
 

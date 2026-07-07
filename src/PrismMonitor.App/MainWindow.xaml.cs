@@ -187,7 +187,7 @@ public sealed partial class MainWindow : Window
 
     private async void TerminateMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not MenuFlyoutItem { Tag: ProcessRow row })
+        if (sender is not FrameworkElement { Tag: ProcessRow row })
         {
             return;
         }
@@ -203,7 +203,7 @@ public sealed partial class MainWindow : Window
 
     private async void IgnoreProcessMenuItem_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not MenuFlyoutItem { Tag: ProcessRow row })
+        if (sender is not FrameworkElement { Tag: ProcessRow row })
         {
             return;
         }

@@ -35,14 +35,6 @@
                 <Setter Property="CornerRadius" Value="4" />
                 <Setter Property="VerticalAlignment" Value="Center" />
             </Style>
-            <Style x:Key="DetailsPanelStyle" TargetType="Border">
-                <Setter Property="Margin" Value="48,0,12,12" />
-                <Setter Property="Padding" Value="12" />
-                <Setter Property="Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="8" />
-            </Style>
             <Style x:Key="DetailLabelTextStyle" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="12" />
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -52,6 +44,14 @@
             <Style x:Key="DetailValueTextStyle" TargetType="TextBlock">
                 <Setter Property="VerticalAlignment" Value="Center" />
                 <Setter Property="TextAlignment" Value="Left" />
+            </Style>
+            <Style x:Key="DetailValueButtonStyle" TargetType="Button">
+                <Setter Property="MinHeight" Value="28" />
+                <Setter Property="Padding" Value="0,2" />
+                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
             </Style>
             <Style x:Key="IconCommandButtonStyle" TargetType="Button">
                 <Setter Property="MinWidth" Value="34" />
@@ -191,29 +191,25 @@
                                                         TextAlignment="Left" />
                                                 </Grid>
                                             </Expander.Header>
-                                            <Border x:Name="ProcessDetailsPanel" Style="{StaticResource DetailsPanelStyle}">
-                                                <StackPanel Spacing="8">
+                                            <StackPanel
+                                                x:Name="ProcessDetailsPanel"
+                                                Padding="48,0,12,12"
+                                                Spacing="8">
                                                     <Grid ColumnSpacing="8">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="84" />
                                                             <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="PID" />
-                                                        <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind ProcessId, Mode=OneWay}" />
                                                         <Button
                                                             x:Name="CopyProcessIdButton"
-                                                            Grid.Column="2"
+                                                            Grid.Column="1"
                                                             AutomationProperties.Name="Copy process PID"
                                                             Click="CopyValueButton_Click"
-                                                            Style="{StaticResource IconCommandButtonStyle}"
+                                                            Content="{x:Bind ProcessId, Mode=OneWay}"
+                                                            Style="{StaticResource DetailValueButtonStyle}"
                                                             Tag="{x:Bind ProcessId, Mode=OneWay}"
-                                                            ToolTipService.ToolTip="Copy process PID">
-                                                            <FontIcon
-                                                                FontFamily="Segoe Fluent Icons"
-                                                                FontSize="14"
-                                                                Glyph="&#xE8C8;" />
-                                                        </Button>
+                                                            ToolTipService.ToolTip="Copy process PID" />
                                                     </Grid>
                                                     <Grid ColumnSpacing="8">
                                                         <Grid.ColumnDefinitions>
@@ -227,7 +223,6 @@
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="84" />
                                                             <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
                                                         <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="Path" />
                                                         <TextBlock
@@ -238,37 +233,22 @@
                                                             TextAlignment="Left"
                                                             TextWrapping="Wrap"
                                                             ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                                        <Button
-                                                            x:Name="CopyProcessPathButton"
-                                                            Grid.Column="2"
-                                                            AutomationProperties.Name="Copy process path"
-                                                            Click="CopyValueButton_Click"
-                                                            Style="{StaticResource IconCommandButtonStyle}"
-                                                            Tag="{x:Bind ExecutablePath, Mode=OneWay}"
-                                                            ToolTipService.ToolTip="Copy process path">
-                                                            <FontIcon
-                                                                FontFamily="Segoe Fluent Icons"
-                                                                FontSize="14"
-                                                                Glyph="&#xE8C8;" />
-                                                        </Button>
                                                     </Grid>
-                                                    <Button
-                                                        AutomationProperties.Name="Process actions"
-                                                        Style="{StaticResource IconCommandButtonStyle}"
-                                                        ToolTipService.ToolTip="Process actions">
-                                                        <FontIcon
-                                                            FontFamily="Segoe Fluent Icons"
-                                                            FontSize="14"
-                                                            Glyph="&#xE712;" />
-                                                        <Button.Flyout>
-                                                            <MenuFlyout>
-                                                                <MenuFlyoutItem Click="TerminateMenuItem_Click" Tag="{x:Bind}" Text="End process" />
-                                                                <MenuFlyoutItem Click="IgnoreProcessMenuItem_Click" Tag="{x:Bind}" Text="Ignore process" />
-                                                            </MenuFlyout>
-                                                        </Button.Flyout>
-                                                    </Button>
-                                                </StackPanel>
-                                            </Border>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                                        <Button
+                                                            x:Name="EndProcessButton"
+                                                            Click="TerminateMenuItem_Click"
+                                                            Content="End process"
+                                                            Tag="{x:Bind}"
+                                                            ToolTipService.ToolTip="End process" />
+                                                        <Button
+                                                            x:Name="IgnoreProcessButton"
+                                                            Click="IgnoreProcessMenuItem_Click"
+                                                            Content="Ignore"
+                                                            Tag="{x:Bind}"
+                                                            ToolTipService.ToolTip="Ignore process" />
+                                                    </StackPanel>
+                                            </StackPanel>
                                         </Expander>
                                     </Border>
                                 </DataTemplate>
@@ -421,29 +401,25 @@
                                                     TextAlignment="Left" />
                                             </Grid>
                                         </Expander.Header>
-                                        <Border x:Name="HistoryDetailsPanel" Style="{StaticResource DetailsPanelStyle}">
-                                            <StackPanel Spacing="8">
+                                        <StackPanel
+                                            x:Name="HistoryDetailsPanel"
+                                            Padding="48,0,12,12"
+                                            Spacing="8">
                                                 <Grid ColumnSpacing="8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="84" />
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="PID" />
-                                                    <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind LastProcessId, Mode=OneWay}" />
                                                     <Button
                                                         x:Name="CopyHistoryProcessIdButton"
-                                                        Grid.Column="2"
+                                                        Grid.Column="1"
                                                         AutomationProperties.Name="Copy history PID"
                                                         Click="CopyValueButton_Click"
-                                                        Style="{StaticResource IconCommandButtonStyle}"
+                                                        Content="{x:Bind LastProcessId, Mode=OneWay}"
+                                                        Style="{StaticResource DetailValueButtonStyle}"
                                                         Tag="{x:Bind LastProcessId, Mode=OneWay}"
-                                                        ToolTipService.ToolTip="Copy history PID">
-                                                        <FontIcon
-                                                            FontFamily="Segoe Fluent Icons"
-                                                            FontSize="14"
-                                                            Glyph="&#xE8C8;" />
-                                                    </Button>
+                                                        ToolTipService.ToolTip="Copy history PID" />
                                                 </Grid>
                                                 <Grid ColumnSpacing="8">
                                                     <Grid.ColumnDefinitions>
@@ -462,7 +438,6 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="84" />
                                                         <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="Path" />
                                                     <TextBlock
@@ -473,22 +448,8 @@
                                                         TextAlignment="Left"
                                                         TextWrapping="Wrap"
                                                         ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
-                                                    <Button
-                                                        x:Name="CopyHistoryPathButton"
-                                                        Grid.Column="2"
-                                                        AutomationProperties.Name="Copy history path"
-                                                        Click="CopyValueButton_Click"
-                                                        Style="{StaticResource IconCommandButtonStyle}"
-                                                        Tag="{x:Bind ExecutablePath, Mode=OneWay}"
-                                                        ToolTipService.ToolTip="Copy history path">
-                                                        <FontIcon
-                                                            FontFamily="Segoe Fluent Icons"
-                                                            FontSize="14"
-                                                            Glyph="&#xE8C8;" />
-                                                    </Button>
                                                 </Grid>
-                                            </StackPanel>
-                                        </Border>
+                                        </StackPanel>
                                     </Expander>
                                 </Border>
                             </DataTemplate>
