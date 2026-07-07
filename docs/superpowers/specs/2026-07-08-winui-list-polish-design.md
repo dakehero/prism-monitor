@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make the Processes and History pages feel like modern WinUI utility surfaces instead of rough expandable tables.
+Make the Processes, History, and Filters pages feel like modern WinUI utility surfaces instead of rough expandable tables.
 
 ## Design Principles
 
@@ -29,7 +29,12 @@ Make the Processes and History pages feel like modern WinUI utility surfaces ins
 - Each history row mirrors process row treatment: icon, name, architecture badge, launch summary, and inline expandable details.
 - PID is directly clickable/copyable; path remains selectable text without a repeated copy button.
 
+## Filters Page
+
+- Use the page heading to name the ignored-apps list; do not repeat the same label as a `ListView.Header`.
+- Keep add/remove actions direct and visible.
+
 ## Verification
 
-- Add XAML regression tests requiring page status text, compact command affordances, rounded row backplates, inline details, value-based PID copy, and direct process actions.
-- Build the app, install or launch a local render, and screenshot-review Processes and History default and expanded states.
+- Add XAML regression tests requiring page status text, compact command affordances, rounded row backplates, inline details, value-based PID copy, direct process actions, and no duplicated Filters heading.
+- Build the app, install or launch a local render, and screenshot-review Processes, History, and Filters surfaces touched by the change.

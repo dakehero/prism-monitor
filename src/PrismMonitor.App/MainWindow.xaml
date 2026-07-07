@@ -486,7 +486,13 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <TextBlock FontSize="18" FontWeight="SemiBold" Text="Ignored apps" />
+                        <TextBlock
+                            x:Name="FiltersHeading"
+                            HorizontalAlignment="Left"
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Text="Ignored apps"
+                            TextAlignment="Left" />
 
                         <Grid Grid.Row="1" ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
@@ -512,9 +518,6 @@
                                     <Setter Property="Padding" Value="0" />
                                 </Style>
                             </ListView.ItemContainerStyle>
-                            <ListView.Header>
-                                <TextBlock HorizontalAlignment="Left" Margin="0,0,0,8" FontWeight="SemiBold" Text="Ignored apps" TextAlignment="Left" />
-                            </ListView.Header>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="local:FilterRow">
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">

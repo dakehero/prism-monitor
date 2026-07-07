@@ -68,6 +68,7 @@ public sealed class MainWindowLayoutTests
 
         string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
         string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+        string filtersPage = SliceBetween(xaml, "x:Name=\"FiltersPage\"", "x:Name=\"SettingsPage\"");
         string filterList = SliceBetween(xaml, "x:Name=\"FilterListView\"", "x:Name=\"SettingsPage\"");
 
         Assert.IsFalse(
@@ -86,14 +87,28 @@ public sealed class MainWindowLayoutTests
             6,
             CountOccurrences(historyList, "TextAlignment=\"Left\""),
             "History list detail text should explicitly align text to the left.");
-        Assert.IsGreaterThanOrEqualTo(
-            2,
-            CountOccurrences(filterList, "TextAlignment=\"Left\""),
-            "Filter list headers and row text should explicitly align text to the left.");
+        StringAssert.Contains(filterList, "TextAlignment=\"Left\"");
+        StringAssert.Contains(filtersPage, "x:Name=\"FiltersHeading\"");
+        StringAssert.Contains(filtersPage, "TextAlignment=\"Left\"");
         Assert.IsGreaterThanOrEqualTo(
             3,
             CountOccurrences(xaml, "<Setter Property=\"HorizontalContentAlignment\" Value=\"Stretch\" />"),
             "Process, history, and filter list rows should stretch so left-aligned text starts at the column edge.");
+    }
+
+    [TestMethod]
+    public void FiltersPageDoesNotRepeatIgnoredAppsHeading()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+        string filtersPage = SliceBetween(xaml, "x:Name=\"FiltersPage\"", "x:Name=\"SettingsPage\"");
+
+        Assert.AreEqual(
+            1,
+            CountOccurrences(filtersPage, "Text=\"Ignored apps\""),
+            "Filters should show one page heading instead of repeating the same label above the list.");
+        Assert.IsFalse(
+            filtersPage.Contains("<ListView.Header>", StringComparison.Ordinal),
+            "Filters should avoid a redundant list header when the page heading already names the content.");
     }
 
     [TestMethod]
