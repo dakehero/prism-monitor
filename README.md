@@ -15,9 +15,11 @@ Prism Monitor is a Windows ARM64 tray app for spotting compatibility-mode deskto
 
 ## Install
 
-Prism Monitor is available on the Microsoft Store:
-
-[Install prism-monitor from Microsoft Store](https://apps.microsoft.com/detail/9NHJX7QKXW8F?hl=neutral&gl=SG&ocid=pdpshare)
+<p>
+  <a href="https://apps.microsoft.com/detail/9NHJX7QKXW8F?hl=neutral&gl=SG&ocid=pdpshare">
+    <img src="https://get.microsoft.com/images/en-us%20dark.svg" alt="Get it from Microsoft" width="220" />
+  </a>
+</p>
 
 The Store package is the recommended installation path for normal use.
 
