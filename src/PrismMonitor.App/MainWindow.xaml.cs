@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
@@ -6,6 +7,7 @@ using PrismMonitor.Core.History;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.App.Processes;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 
 namespace PrismMonitor.App;
@@ -132,7 +134,7 @@ public sealed partial class MainWindow : Window
                 _cachedHistorySummaries = await _launchHistoryStore.GetSummaryAsync(
                     DateTimeOffset.UtcNow,
                     ignoredNamesSnapshot);
-                ApplyCachedHistoryFilter();
+                await ApplyCachedHistoryFilterAsync();
             }
             while (_refreshHistoryAgain);
         }
@@ -217,19 +219,47 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
-    private void HistoryFilter_Changed(object sender, RoutedEventArgs e)
+    private async void HistoryFilter_Changed(object sender, RoutedEventArgs e)
     {
         if (!AreHistoryFilterControlsReady())
         {
             return;
         }
 
-        ApplyCachedHistoryFilter();
+        await ApplyCachedHistoryFilterAsync();
     }
 
     private async void RefreshHistoryButton_Click(object sender, RoutedEventArgs e)
     {
         await RefreshHistoryAsync();
+    }
+
+    private async void CopyValueButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is null)
+        {
+            return;
+        }
+
+        string text = Convert.ToString(button.Tag, CultureInfo.InvariantCulture) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        DataPackage package = new();
+        package.SetText(text);
+        Clipboard.SetContent(package);
+
+        object originalContent = button.Content;
+        button.Content = "Copied";
+        await Task.Delay(TimeSpan.FromSeconds(1));
+
+        if (button.Content is string currentContent
+            && string.Equals(currentContent, "Copied", StringComparison.Ordinal))
+        {
+            button.Content = originalContent;
+        }
     }
 
     private async void ClearHistoryButton_Click(object sender, RoutedEventArgs e)
@@ -499,6 +529,7 @@ public sealed partial class MainWindow : Window
                     process.Name,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
+                    process.ExecutablePath ?? string.Empty,
                     await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath));
             }
             else
@@ -508,6 +539,7 @@ public sealed partial class MainWindow : Window
                     process.ProcessId,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
+                    process.ExecutablePath ?? string.Empty,
                     await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath)));
             }
         }
@@ -541,16 +573,16 @@ public sealed partial class MainWindow : Window
         return -1;
     }
 
-    private void ApplyCachedHistoryFilter()
+    private async Task ApplyCachedHistoryFilterAsync()
     {
         IReadOnlyList<LaunchHistorySummary> filteredSummaries = LaunchHistoryFilter.Apply(
             _cachedHistorySummaries,
             GetHistoryQueryFromControls());
 
-        ApplyHistorySnapshot(filteredSummaries);
+        await ApplyHistorySnapshotAsync(filteredSummaries);
     }
 
-    private void ApplyHistorySnapshot(IReadOnlyList<LaunchHistorySummary> summaries)
+    private async Task ApplyHistorySnapshotAsync(IReadOnlyList<LaunchHistorySummary> summaries)
     {
         Dictionary<string, HistoryRow> rowsByKey = HistoryRows.ToDictionary(
             row => GetHistoryKey(row.ProcessName, row.Architecture, row.ExecutablePath),
@@ -578,8 +610,10 @@ public sealed partial class MainWindow : Window
                     summary.LaunchCount,
                     FormatHistoryTimestamp(summary.FirstSeenAt),
                     FormatHistoryTimestamp(summary.LastSeenAt),
+                    summary.LastProcessId,
                     executablePath,
-                    summary.IsIgnored ? "Ignored" : string.Empty);
+                    summary.IsIgnored ? "Ignored" : string.Empty,
+                    await _iconProvider.GetIconAsync(summary.ProcessName, summary.LastExecutablePath));
             }
             else
             {
@@ -589,8 +623,10 @@ public sealed partial class MainWindow : Window
                     summary.LaunchCount,
                     FormatHistoryTimestamp(summary.FirstSeenAt),
                     FormatHistoryTimestamp(summary.LastSeenAt),
+                    summary.LastProcessId,
                     executablePath,
-                    summary.IsIgnored ? "Ignored" : string.Empty));
+                    summary.IsIgnored ? "Ignored" : string.Empty,
+                    await _iconProvider.GetIconAsync(summary.ProcessName, summary.LastExecutablePath)));
             }
         }
 

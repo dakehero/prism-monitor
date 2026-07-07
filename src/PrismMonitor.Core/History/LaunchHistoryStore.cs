@@ -109,12 +109,19 @@ public sealed class LaunchHistoryStore(string eventsFilePath, string summaryFile
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            if ((summaries ?? []).Any(summary => summary is not null && summary.FirstSeenAt < cutoff))
+            LaunchHistorySummary[] loadedSummaries = summaries ?? [];
+            if (loadedSummaries.Any(summary => summary is not null && summary.FirstSeenAt < cutoff))
             {
                 return await RebuildSummaryAsync(now, cancellationToken).ConfigureAwait(false);
             }
 
-            return (summaries ?? [])
+            if (File.Exists(eventsFilePath)
+                && loadedSummaries.Any(summary => IsValidSummary(summary, cutoff, now) && summary.LastProcessId <= 0))
+            {
+                return await RebuildSummaryAsync(now, cancellationToken).ConfigureAwait(false);
+            }
+
+            return loadedSummaries
                 .Where(summary => IsValidSummary(summary, cutoff, now))
                 .OrderByDescending(summary => summary.LastSeenAt)
                 .ThenBy(summary => summary.ProcessName, StringComparer.OrdinalIgnoreCase)
@@ -205,7 +212,8 @@ public sealed class LaunchHistoryStore(string eventsFilePath, string summaryFile
                     group.Count(),
                     firstEvent.DetectedAt,
                     lastEvent.DetectedAt,
-                    lastEvent.ExecutablePath);
+                    lastEvent.ExecutablePath,
+                    lastEvent.ProcessId);
             })
             .OrderByDescending(summary => summary.LastSeenAt)
             .ThenBy(summary => summary.ProcessName, StringComparer.OrdinalIgnoreCase)

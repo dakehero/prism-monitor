@@ -89,51 +89,103 @@
                                     <Setter Property="Padding" Value="0" />
                                 </Style>
                             </ListView.ItemContainerStyle>
-                            <ListView.Header>
-                                <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                    <Grid Padding="8,0,8,6" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="32" />
-                                            <ColumnDefinition Width="*" MinWidth="260" />
-                                            <ColumnDefinition Width="72" />
-                                            <ColumnDefinition Width="96" />
-                                            <ColumnDefinition Width="104" />
-                                            <ColumnDefinition Width="112" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Process" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="PID" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="CPU time" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Actions" TextAlignment="Left" />
-                                    </Grid>
-                                </Border>
-                            </ListView.Header>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="local:ProcessRow">
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <Grid Padding="8,6" ColumnSpacing="12">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="32" />
-                                                <ColumnDefinition Width="*" MinWidth="260" />
-                                                <ColumnDefinition Width="72" />
-                                                <ColumnDefinition Width="96" />
-                                                <ColumnDefinition Width="104" />
-                                                <ColumnDefinition Width="112" />
-                                            </Grid.ColumnDefinitions>
-                                            <Image Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{x:Bind Icon, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessId, Mode=OneWay}" TextAlignment="Left" />
-                                            <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
-                                            <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind CpuTime, Mode=OneWay}" TextAlignment="Left" />
-                                            <Button Grid.Column="5" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Actions">
-                                                <Button.Flyout>
-                                                    <MenuFlyout>
-                                                        <MenuFlyoutItem Click="TerminateMenuItem_Click" Tag="{x:Bind}" Text="End process" />
-                                                        <MenuFlyoutItem Click="IgnoreProcessMenuItem_Click" Tag="{x:Bind}" Text="Ignore process" />
-                                                    </MenuFlyout>
-                                                </Button.Flyout>
-                                            </Button>
-                                        </Grid>
+                                        <Expander HorizontalAlignment="Stretch">
+                                            <Expander.Header>
+                                                <Grid ColumnSpacing="12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="36" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Image Width="28" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{x:Bind Icon, Mode=OneWay}" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Center"
+                                                        FontWeight="SemiBold"
+                                                        MaxLines="1"
+                                                        Text="{x:Bind Name, Mode=OneWay}"
+                                                        TextAlignment="Left"
+                                                        TextTrimming="CharacterEllipsis" />
+                                                    <Border
+                                                        x:Name="ProcessArchitectureBadge"
+                                                        Grid.Column="2"
+                                                        Padding="6,2"
+                                                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                        VerticalAlignment="Center"
+                                                        CornerRadius="4">
+                                                        <TextBlock FontSize="12" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
+                                                    </Border>
+                                                    <TextBlock
+                                                        x:Name="ProcessSummaryLine"
+                                                        Grid.Column="3"
+                                                        VerticalAlignment="Center"
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="{x:Bind SummaryLine, Mode=OneWay}"
+                                                        TextAlignment="Left" />
+                                                </Grid>
+                                            </Expander.Header>
+                                            <StackPanel Padding="48,0,8,10" Spacing="8">
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="PID" TextAlignment="Left" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind ProcessId, Mode=OneWay}" TextAlignment="Left" />
+                                                    <Button
+                                                        x:Name="CopyProcessIdButton"
+                                                        Grid.Column="2"
+                                                        Click="CopyValueButton_Click"
+                                                        Content="Copy"
+                                                        Tag="{x:Bind ProcessId, Mode=OneWay}" />
+                                                </Grid>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="CPU time" TextAlignment="Left" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind CpuTime, Mode=OneWay}" TextAlignment="Left" />
+                                                </Grid>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="84" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Path" TextAlignment="Left" />
+                                                    <TextBlock
+                                                        Grid.Column="1"
+                                                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                        IsTextSelectionEnabled="True"
+                                                        Text="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                        TextAlignment="Left"
+                                                        TextWrapping="Wrap"
+                                                        ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                                    <Button
+                                                        x:Name="CopyProcessPathButton"
+                                                        Grid.Column="2"
+                                                        Click="CopyValueButton_Click"
+                                                        Content="Copy"
+                                                        Tag="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                                </Grid>
+                                                <Button HorizontalAlignment="Left" Content="Actions">
+                                                    <Button.Flyout>
+                                                        <MenuFlyout>
+                                                            <MenuFlyoutItem Click="TerminateMenuItem_Click" Tag="{x:Bind}" Text="End process" />
+                                                            <MenuFlyoutItem Click="IgnoreProcessMenuItem_Click" Tag="{x:Bind}" Text="Ignore process" />
+                                                        </MenuFlyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                            </StackPanel>
+                                        </Expander>
                                     </Border>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -200,8 +252,8 @@
                         x:Name="HistoryListView"
                         Grid.Row="1"
                         ItemsSource="{x:Bind HistoryRows, Mode=OneWay}"
-                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                        ScrollViewer.HorizontalScrollMode="Enabled"
+                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                        ScrollViewer.HorizontalScrollMode="Disabled"
                         ScrollViewer.VerticalScrollBarVisibility="Auto"
                         ScrollViewer.VerticalScrollMode="Enabled"
                         SelectionMode="None">
@@ -211,49 +263,105 @@
                                 <Setter Property="Padding" Value="0" />
                             </Style>
                         </ListView.ItemContainerStyle>
-                        <ListView.Header>
-                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                <Grid Padding="8,0,8,6" ColumnSpacing="12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="130" />
-                                        <ColumnDefinition Width="72" />
-                                        <ColumnDefinition Width="72" />
-                                        <ColumnDefinition Width="112" />
-                                        <ColumnDefinition Width="112" />
-                                        <ColumnDefinition Width="72" />
-                                        <ColumnDefinition Width="2*" MinWidth="120" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock HorizontalAlignment="Left" FontWeight="SemiBold" Text="App" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="1" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Arch" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="2" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Launches" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="3" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Last seen" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="4" HorizontalAlignment="Left" FontWeight="SemiBold" Text="First seen" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="5" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Ignored" TextAlignment="Left" />
-                                    <TextBlock Grid.Column="6" HorizontalAlignment="Left" FontWeight="SemiBold" Text="Path" TextAlignment="Left" />
-                                </Grid>
-                            </Border>
-                        </ListView.Header>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="local:HistoryRow">
                                 <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                    <Grid Padding="8,6" ColumnSpacing="12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" MinWidth="130" />
-                                            <ColumnDefinition Width="72" />
-                                            <ColumnDefinition Width="72" />
-                                            <ColumnDefinition Width="112" />
-                                            <ColumnDefinition Width="112" />
-                                            <ColumnDefinition Width="72" />
-                                            <ColumnDefinition Width="2*" MinWidth="120" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ProcessName, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="2" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind LaunchCount, Mode=OneWay}" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="3" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind LastSeen, Mode=OneWay}" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="4" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind FirstSeen, Mode=OneWay}" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="5" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind IgnoredText, Mode=OneWay}" TextAlignment="Left" />
-                                        <TextBlock Grid.Column="6" HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind ExecutablePath, Mode=OneWay}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
-                                    </Grid>
+                                    <Expander HorizontalAlignment="Stretch">
+                                        <Expander.Header>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="36" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Image Width="28" Height="28" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{x:Bind Icon, Mode=OneWay}" />
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center"
+                                                    FontWeight="SemiBold"
+                                                    MaxLines="1"
+                                                    Text="{x:Bind ProcessName, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <Border
+                                                    x:Name="HistoryArchitectureBadge"
+                                                    Grid.Column="2"
+                                                    Padding="6,2"
+                                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                                    VerticalAlignment="Center"
+                                                    CornerRadius="4">
+                                                    <TextBlock FontSize="12" Text="{x:Bind Architecture, Mode=OneWay}" TextAlignment="Left" />
+                                                </Border>
+                                                <TextBlock
+                                                    x:Name="HistorySummaryLine"
+                                                    Grid.Column="3"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Text="{x:Bind SummaryLine, Mode=OneWay}"
+                                                    TextAlignment="Left" />
+                                                <TextBlock
+                                                    Grid.Column="4"
+                                                    VerticalAlignment="Center"
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    Text="{x:Bind IgnoredText, Mode=OneWay}"
+                                                    TextAlignment="Left" />
+                                            </Grid>
+                                        </Expander.Header>
+                                        <StackPanel Padding="48,0,8,10" Spacing="8">
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="84" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="PID" TextAlignment="Left" />
+                                                <TextBlock Grid.Column="1" Text="{x:Bind LastProcessId, Mode=OneWay}" TextAlignment="Left" />
+                                                <Button
+                                                    x:Name="CopyHistoryProcessIdButton"
+                                                    Grid.Column="2"
+                                                    Click="CopyValueButton_Click"
+                                                    Content="Copy"
+                                                    Tag="{x:Bind LastProcessId, Mode=OneWay}" />
+                                            </Grid>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="84" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Seen" TextAlignment="Left" />
+                                                <TextBlock
+                                                    x:Name="HistoryMetaLine"
+                                                    Grid.Column="1"
+                                                    Text="{x:Bind TimeRangeLine, Mode=OneWay}"
+                                                    TextAlignment="Left" />
+                                            </Grid>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="84" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Path" TextAlignment="Left" />
+                                                <TextBlock
+                                                    Grid.Column="1"
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                    IsTextSelectionEnabled="True"
+                                                    Text="{x:Bind ExecutablePath, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextWrapping="Wrap"
+                                                    ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                                <Button
+                                                    x:Name="CopyHistoryPathButton"
+                                                    Grid.Column="2"
+                                                    Click="CopyValueButton_Click"
+                                                    Content="Copy"
+                                                    Tag="{x:Bind ExecutablePath, Mode=OneWay}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Expander>
                                 </Border>
                             </DataTemplate>
                         </ListView.ItemTemplate>

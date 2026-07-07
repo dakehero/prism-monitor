@@ -32,6 +32,7 @@ public sealed class LaunchHistoryStoreTests
         Assert.AreEqual("x64", summaries[0].Architecture);
         Assert.AreEqual(2, summaries[0].LaunchCount);
         Assert.AreEqual(@"C:\Apps\Chrome.exe", summaries[0].LastExecutablePath);
+        Assert.AreEqual(101, summaries[0].LastProcessId);
     }
 
     [TestMethod]
@@ -99,6 +100,30 @@ public sealed class LaunchHistoryStoreTests
         Assert.AreEqual("x64", summaries[0].Architecture);
         Assert.AreEqual(1, summaries[0].LaunchCount);
         Assert.AreEqual(@"C:\Apps\CachedApp.exe", summaries[0].LastExecutablePath);
+    }
+
+    [TestMethod]
+    public async Task GetSummaryAsync_RebuildsSummaryMissingLastProcessId()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        Directory.CreateDirectory(_temporaryDirectory!);
+        await File.WriteAllTextAsync(
+            Path.Combine(_temporaryDirectory!, "launch-summary.json"),
+            """
+            [{"processName":"CachedApp","architecture":"x64","launchCount":1,"firstSeenAt":"2026-07-06T08:00:00+00:00","lastSeenAt":"2026-07-06T08:00:00+00:00","lastExecutablePath":"C:\\Apps\\CachedApp.exe"}]
+            """);
+        await File.WriteAllTextAsync(
+            Path.Combine(_temporaryDirectory!, "launch-events.jsonl"),
+            """
+            {"processName":"CachedApp","architecture":"x64","processId":88,"executablePath":"C:\\Apps\\CachedApp.exe","startedAt":null,"detectedAt":"2026-07-06T08:00:00+00:00"}
+
+            """);
+
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryAsync(now.AddMinutes(1), []);
+
+        Assert.HasCount(1, summaries);
+        Assert.AreEqual(88, summaries[0].LastProcessId);
     }
 
     [TestMethod]

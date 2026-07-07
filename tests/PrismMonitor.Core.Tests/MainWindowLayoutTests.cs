@@ -45,7 +45,7 @@ public sealed class MainWindowLayoutTests
     }
 
     [TestMethod]
-    public void MainWindowTablesUseLeftAlignedText()
+    public void MainWindowListDetailsRowsUseLeftAlignedText()
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
 
@@ -53,14 +53,22 @@ public sealed class MainWindowLayoutTests
         string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
         string filterList = SliceBetween(xaml, "x:Name=\"FilterListView\"", "x:Name=\"SettingsPage\"");
 
+        Assert.IsFalse(
+            processList.Contains("<ListView.Header>", StringComparison.Ordinal),
+            "Processes should use list/details rows instead of a pseudo-table header.");
+        Assert.IsFalse(
+            historyList.Contains("<ListView.Header>", StringComparison.Ordinal),
+            "History should use list/details rows instead of a pseudo-table header.");
+        StringAssert.Contains(processList, "x:Name=\"ProcessSummaryLine\"");
+        StringAssert.Contains(historyList, "x:Name=\"HistorySummaryLine\"");
         Assert.IsGreaterThanOrEqualTo(
-            9,
+            4,
             CountOccurrences(processList, "TextAlignment=\"Left\""),
-            "Process list headers and row text should explicitly align text to the left.");
+            "Process list detail text should explicitly align text to the left.");
         Assert.IsGreaterThanOrEqualTo(
-            14,
+            6,
             CountOccurrences(historyList, "TextAlignment=\"Left\""),
-            "History list headers and row text should explicitly align text to the left.");
+            "History list detail text should explicitly align text to the left.");
         Assert.IsGreaterThanOrEqualTo(
             2,
             CountOccurrences(filterList, "TextAlignment=\"Left\""),
@@ -69,6 +77,37 @@ public sealed class MainWindowLayoutTests
             3,
             CountOccurrences(xaml, "<Setter Property=\"HorizontalContentAlignment\" Value=\"Stretch\" />"),
             "Process, history, and filter list rows should stretch so left-aligned text starts at the column edge.");
+    }
+
+    [TestMethod]
+    public void ProcessAndHistoryRowsUseExpandableCompactDetailsStructure()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+
+        string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+
+        Assert.IsGreaterThanOrEqualTo(
+            2,
+            CountOccurrences(xaml, "<Expander"),
+            "Processes and history should use expandable compact rows.");
+        StringAssert.Contains(processList, "Source=\"{x:Bind Icon, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "x:Name=\"ProcessArchitectureBadge\"");
+        StringAssert.Contains(processList, "x:Name=\"ProcessSummaryLine\"");
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessIdButton\"");
+        StringAssert.Contains(processList, "x:Name=\"CopyProcessPathButton\"");
+        StringAssert.Contains(processList, "Click=\"CopyValueButton_Click\"");
+        StringAssert.Contains(processList, "Tag=\"{x:Bind ProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(processList, "Tag=\"{x:Bind ExecutablePath, Mode=OneWay}\"");
+
+        StringAssert.Contains(historyList, "Source=\"{x:Bind Icon, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "x:Name=\"HistoryArchitectureBadge\"");
+        StringAssert.Contains(historyList, "x:Name=\"HistorySummaryLine\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdButton\"");
+        StringAssert.Contains(historyList, "x:Name=\"CopyHistoryPathButton\"");
+        StringAssert.Contains(historyList, "Click=\"CopyValueButton_Click\"");
+        StringAssert.Contains(historyList, "Tag=\"{x:Bind LastProcessId, Mode=OneWay}\"");
+        StringAssert.Contains(historyList, "Tag=\"{x:Bind ExecutablePath, Mode=OneWay}\"");
     }
 
     [TestMethod]
