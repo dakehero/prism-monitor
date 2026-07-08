@@ -20,8 +20,6 @@ public sealed partial class MainWindow : Window
     private readonly LaunchHistoryStore _launchHistoryStore;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
-    private readonly bool _isElevated;
-    private readonly Func<bool> _relaunchAsAdministrator;
     private readonly DispatcherTimer _refreshTimer = new();
     // AppWindow uses window pixels; on the current 200% display scale this is about 818 x 488 XAML effective pixels.
     private readonly SizeInt32 _windowSize = new(1636, 975);
@@ -49,16 +47,12 @@ public sealed partial class MainWindow : Window
         CompatibilityProcessService processService,
         IgnoredProcessStore ignoredProcessStore,
         MonitoringSettingsStore settingsStore,
-        LaunchHistoryStore launchHistoryStore,
-        bool isElevated,
-        Func<bool> relaunchAsAdministrator)
+        LaunchHistoryStore launchHistoryStore)
     {
         _processService = processService;
         _ignoredProcessStore = ignoredProcessStore;
         _settingsStore = settingsStore;
         _launchHistoryStore = launchHistoryStore;
-        _isElevated = isElevated;
-        _relaunchAsAdministrator = relaunchAsAdministrator;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -287,17 +281,8 @@ public sealed partial class MainWindow : Window
 
     private async void Root_Loaded(object sender, RoutedEventArgs e)
     {
-        LoadElevationState();
         await ReloadIgnoredNamesAsync();
         await LoadSettingsControlsAsync();
-    }
-
-    private void RelaunchAsAdministratorButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_relaunchAsAdministrator())
-        {
-            ElevationStatusTextBlock.Text = "Administrator relaunch was cancelled or could not be started.";
-        }
     }
 
     private async void IncludeArm64EcToggle_Toggled(object sender, RoutedEventArgs e)
@@ -467,19 +452,6 @@ public sealed partial class MainWindow : Window
         {
             _isLoadingSettings = false;
         }
-    }
-
-    private void LoadElevationState()
-    {
-        if (_isElevated)
-        {
-            ElevationStatusTextBlock.Text = "Running as administrator. Full process visibility is available, but system notifications are unavailable while elevated.";
-            RelaunchAsAdministratorButton.IsEnabled = false;
-            return;
-        }
-
-        ElevationStatusTextBlock.Text = "Running with standard user permissions. System notifications are available.";
-        RelaunchAsAdministratorButton.IsEnabled = true;
     }
 
     private async Task SaveSettingsFromControlsAsync()

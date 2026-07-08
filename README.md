@@ -38,7 +38,7 @@ src/PrismMonitor.App/bin/Release/net10.0-windows10.0.26100.0/win-arm64/publish/P
 
 ## Usage
 
-Run Prism Monitor from Start or another interactive Windows shell. The app starts in the notification area with standard user permissions so Windows Toast notifications can work. When full visibility into processes owned by other users or the system is needed, open Settings and choose `Restart as administrator`.
+Run Prism Monitor from Start or another interactive Windows shell. The app starts in the notification area with standard user permissions so Windows Toast notifications can work. Some processes owned by other users or the system may be hidden by Windows permissions.
 
 - Left-click the tray icon to show the process list.
 - Right-click the tray icon to open the tray menu, then choose `Exit`.
@@ -48,9 +48,9 @@ Run Prism Monitor from Start or another interactive Windows shell. The app start
 
 Release builds also publish a signed MSIX package for Windows ARM64. Development packages use a self-signed certificate, so use the generated `Install.ps1` script from the release zip only when testing local or GitHub release builds.
 
-After installation, launch Prism Monitor from Start or another interactive Windows shell. The app runs without elevation by default; use the in-app administrator restart only when elevated process visibility is needed.
+After installation, launch Prism Monitor from Start or another interactive Windows shell. The app runs without elevation by default.
 
-The v0.5.x releases cover the full roadmap through process icons, termination, no-flicker refresh, ignore rules, and Toast notifications.
+The v0.6.x releases cover process icons, termination, no-flicker refresh, ignore rules, Toast notifications, and launch history.
 
 ## License
 

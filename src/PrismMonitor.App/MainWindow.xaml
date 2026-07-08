@@ -588,20 +588,6 @@
                             <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
 
                             <StackPanel Spacing="10">
-                                <TextBlock FontWeight="SemiBold" Text="Permissions" />
-                                <TextBlock
-                                    x:Name="ElevationStatusTextBlock"
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    TextWrapping="WrapWholeWords" />
-                                <Button
-                                    x:Name="RelaunchAsAdministratorButton"
-                                    Click="RelaunchAsAdministratorButton_Click"
-                                    Content="Restart as administrator" />
-                            </StackPanel>
-
-                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
-
-                            <StackPanel Spacing="10">
                                 <TextBlock FontWeight="SemiBold" Text="Data" />
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"

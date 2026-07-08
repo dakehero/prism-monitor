@@ -9,7 +9,6 @@ using PrismMonitor.Core.Power;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Diagnostics;
-using PrismMonitor.App.Elevation;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Power;
 using PrismMonitor.App.Processes;
@@ -49,7 +48,6 @@ public partial class App : Application
     private bool _isNotificationRefreshRunning;
     private bool _isMainWindowVisible;
     private DateTimeOffset _lastInteractionRefresh = DateTimeOffset.MinValue;
-    private readonly bool _isElevated = ElevationHelper.IsCurrentProcessElevated();
 
     public App()
     {
@@ -71,12 +69,10 @@ public partial class App : Application
             RequestInteractionRefresh,
             GetTrayStatusAsync);
 
-        if (!_isElevated)
-        {
-            _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
-            _toastService.ProcessOpenRequested += ToastService_ProcessOpenRequested;
-            _toastService.Register();
-        }
+        _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
+        _toastService.ProcessOpenRequested += ToastService_ProcessOpenRequested;
+        _toastService.Register();
+
         _powerStatusProvider.PowerSourceChanged += PowerStatusProvider_PowerSourceChanged;
         _notificationTimer.Interval = TimeSpan.FromSeconds(1);
         _notificationTimer.Tick += NotificationTimer_Tick;
@@ -148,9 +144,7 @@ public partial class App : Application
             _processService,
             _ignoredProcessStore,
             _settingsStore,
-            _launchHistoryStore,
-            _isElevated,
-            RelaunchAsAdministrator);
+            _launchHistoryStore);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) =>
         {
@@ -258,17 +252,6 @@ public partial class App : Application
         }
 
         await window.ShowHistoryForProcessAsync(processName);
-    }
-
-    private bool RelaunchAsAdministrator()
-    {
-        bool started = ElevationHelper.TryRelaunchCurrentProcessAsAdministrator();
-        if (started)
-        {
-            ExitApplication();
-        }
-
-        return started;
     }
 
     private void PowerStatusProvider_PowerSourceChanged(object? sender, EventArgs e)
