@@ -36,4 +36,42 @@ public sealed class RefreshSchedulePolicyTests
 
         Assert.AreEqual(RefreshMode.PeriodicBackground, mode);
     }
+
+    [TestMethod]
+    public void UsesLowerFrequencyMainWindowRefreshOnBattery()
+    {
+        TimeSpan interval = RefreshSchedulePolicy.GetMainWindowRefreshInterval(PowerSource.Battery);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(10), interval);
+    }
+
+    [TestMethod]
+    [DataRow(PowerSource.AC)]
+    [DataRow(PowerSource.Unknown)]
+    public void UsesResponsiveMainWindowRefreshWhenPowerIsNotBattery(PowerSource powerSource)
+    {
+        TimeSpan interval = RefreshSchedulePolicy.GetMainWindowRefreshInterval(powerSource);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(3), interval);
+    }
+
+    [TestMethod]
+    public void UsesLowerFrequencyBackgroundRefreshOnBatteryWhenMainWindowIsVisible()
+    {
+        TimeSpan interval = RefreshSchedulePolicy.GetBackgroundRefreshInterval(
+            PowerSource.Battery,
+            isMainWindowVisible: true);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(10), interval);
+    }
+
+    [TestMethod]
+    public void UsesResponsiveBackgroundRefreshWhenPeriodicRefreshIsAllowed()
+    {
+        TimeSpan interval = RefreshSchedulePolicy.GetBackgroundRefreshInterval(
+            PowerSource.AC,
+            isMainWindowVisible: false);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(3), interval);
+    }
 }

@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
 using PrismMonitor.Core.History;
+using PrismMonitor.Core.Monitoring;
 using PrismMonitor.Core.Notifications;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Power;
@@ -116,13 +117,8 @@ public partial class App : Application
 
     private async Task<TrayStatus> GetTrayStatusAsync()
     {
-        IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
-        MonitoringSettings settings = await _settingsStore.GetAsync();
-        IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-            AppIdentityRuleFilter.FilterProcesses(processes, rules, SuppressionTarget.Tray),
-            settings);
-        return CreateTrayStatus(visibleProcesses);
+        MonitoringSnapshot snapshot = await ReadMonitoringSnapshotAsync();
+        return CreateTrayStatus(snapshot.TrayProcesses);
     }
 
     private static TrayStatus CreateTrayStatus(IReadOnlyList<CompatibilityProcessInfo> visibleProcesses)
@@ -266,9 +262,10 @@ public partial class App : Application
 
     private void UpdateNotificationTimer()
     {
-        RefreshMode refreshMode = RefreshSchedulePolicy.GetRefreshMode(
-            _powerStatusProvider.GetCurrentPowerSource(),
-            _isMainWindowVisible);
+        PowerSource powerSource = _powerStatusProvider.GetCurrentPowerSource();
+        RefreshMode refreshMode = RefreshSchedulePolicy.GetRefreshMode(powerSource, _isMainWindowVisible);
+        _notificationTimer.Interval = RefreshSchedulePolicy.GetBackgroundRefreshInterval(powerSource, _isMainWindowVisible);
+        _window?.SetRefreshInterval(RefreshSchedulePolicy.GetMainWindowRefreshInterval(powerSource));
 
         if (refreshMode == RefreshMode.PeriodicBackground)
         {
@@ -334,35 +331,6 @@ public partial class App : Application
         IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
         IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
         MonitoringSettings settings = await _settingsStore.GetAsync();
-        IReadOnlyList<CompatibilityProcessInfo> includedProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-            processes,
-            settings);
-        IReadOnlyList<CompatibilityProcessInfo> trayProcesses = AppIdentityRuleFilter.FilterProcesses(
-            includedProcesses,
-            rules,
-            SuppressionTarget.Tray);
-        IReadOnlyList<CompatibilityProcessInfo> processPageProcesses = AppIdentityRuleFilter.FilterProcesses(
-            includedProcesses,
-            rules,
-            SuppressionTarget.Processes);
-        IReadOnlyList<CompatibilityProcessInfo> historyProcesses = AppIdentityRuleFilter.FilterProcesses(
-            includedProcesses,
-            rules,
-            SuppressionTarget.History);
-        IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
-            includedProcesses,
-            settings);
-        notifiableProcesses = AppIdentityRuleFilter.FilterProcesses(
-            notifiableProcesses,
-            rules,
-            SuppressionTarget.Toast);
-
-        return new MonitoringSnapshot(processPageProcesses, trayProcesses, notifiableProcesses, historyProcesses);
+        return MonitoringSnapshotBuilder.Build(processes, rules, settings);
     }
 }
-
-internal sealed record MonitoringSnapshot(
-    IReadOnlyList<CompatibilityProcessInfo> Processes,
-    IReadOnlyList<CompatibilityProcessInfo> TrayProcesses,
-    IReadOnlyList<CompatibilityProcessInfo> NotifiableProcesses,
-    IReadOnlyList<CompatibilityProcessInfo> HistoryProcesses);

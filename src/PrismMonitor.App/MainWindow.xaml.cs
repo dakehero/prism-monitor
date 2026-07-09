@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using PrismMonitor.Core.History;
+using PrismMonitor.Core.Monitoring;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
@@ -82,6 +83,14 @@ public sealed partial class MainWindow : Window
         _refreshTimer.Start();
     }
 
+    public void SetRefreshInterval(TimeSpan interval)
+    {
+        if (_refreshTimer.Interval != interval)
+        {
+            _refreshTimer.Interval = interval;
+        }
+    }
+
     public void CloseForExit()
     {
         _allowClose = true;
@@ -102,10 +111,8 @@ public sealed partial class MainWindow : Window
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
             IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
             MonitoringSettings settings = await _settingsStore.GetAsync();
-            IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-                AppIdentityRuleFilter.FilterProcesses(processes, rules, SuppressionTarget.Processes),
-                settings);
-            await ApplyProcessSnapshotAsync(visibleProcesses);
+            MonitoringSnapshot snapshot = MonitoringSnapshotBuilder.Build(processes, rules, settings);
+            await ApplyProcessSnapshotAsync(snapshot.Processes);
         }
         finally
         {

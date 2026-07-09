@@ -10,10 +10,12 @@ namespace PrismMonitor.App.Processes;
 internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
 {
     private const int MaxPath = 32_767;
+    private readonly ProcessEnrichmentCache _enrichmentCache = new();
 
     public Task<IReadOnlyList<CompatibilityProcessInfo>> GetCompatibilityProcessesAsync(CancellationToken cancellationToken = default)
     {
         List<CompatibilityProcessInfo> processes = [];
+        List<ProcessSnapshotInfo> snapshots = [];
 
         foreach (Process process in Process.GetProcesses())
         {
@@ -21,7 +23,14 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                CompatibilityProcessInfo? processInfo = TryReadProcess(process);
+                ProcessSnapshotInfo? snapshot = TryReadSnapshot(process);
+                if (snapshot is null)
+                {
+                    continue;
+                }
+
+                snapshots.Add(snapshot);
+                CompatibilityProcessInfo? processInfo = TryReadProcess(process, snapshot);
                 if (processInfo is not null)
                 {
                     processes.Add(processInfo);
@@ -29,40 +38,30 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
             }
         }
 
+        _enrichmentCache.Prune(snapshots);
         return Task.FromResult<IReadOnlyList<CompatibilityProcessInfo>>(processes);
     }
 
-    private static CompatibilityProcessInfo? TryReadProcess(Process process)
+    private CompatibilityProcessInfo? TryReadProcess(Process process, ProcessSnapshotInfo snapshot)
     {
         try
         {
-            if (!ProcessInterop.IsWow64Process2(process.SafeHandle, out ushort processMachine, out ushort nativeMachine))
-            {
-                return null;
-            }
-
-            string? executablePath = TryReadProcessImagePath(process);
-            PeImageArchitecture? imageArchitecture = processMachine == 0
-                ? TryReadImageArchitecture(executablePath)
-                : null;
-            ProcessArchitectureInfo architecture = ProcessArchitectureClassifier.Classify(
-                processMachine,
-                nativeMachine,
-                imageArchitecture?.Machine,
-                imageArchitecture?.HasArm64XMetadata ?? false);
-            if (!architecture.IsCompatibility)
+            ProcessEnrichmentInfo enrichment = _enrichmentCache.GetOrAdd(
+                snapshot,
+                _ => TryReadEnrichment(process));
+            if (string.IsNullOrWhiteSpace(enrichment.Architecture))
             {
                 return null;
             }
 
             return new CompatibilityProcessInfo(
-                process.ProcessName,
-                process.Id,
-                architecture.DisplayName,
-                process.TotalProcessorTime,
-                executablePath,
-                PackageIdentity: TryReadPackageFullName(process),
-                PublisherIdentity: TryReadPublisherIdentity(executablePath));
+                snapshot.Name,
+                snapshot.ProcessId,
+                enrichment.Architecture,
+                snapshot.CpuTime,
+                enrichment.ExecutablePath,
+                enrichment.PackageIdentity,
+                enrichment.PublisherIdentity);
         }
         catch (InvalidOperationException)
         {
@@ -76,6 +75,58 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         {
             return null;
         }
+    }
+
+    private static ProcessSnapshotInfo? TryReadSnapshot(Process process)
+    {
+        try
+        {
+            return new ProcessSnapshotInfo(
+                process.Id,
+                process.ProcessName,
+                process.TotalProcessorTime,
+                TryReadProcessStartTime(process));
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static ProcessEnrichmentInfo TryReadEnrichment(Process process)
+    {
+        if (!ProcessInterop.IsWow64Process2(process.SafeHandle, out ushort processMachine, out ushort nativeMachine))
+        {
+            return ProcessEnrichmentInfo.NotCompatibility;
+        }
+
+        string? executablePath = TryReadProcessImagePath(process);
+        PeImageArchitecture? imageArchitecture = processMachine == 0
+            ? TryReadImageArchitecture(executablePath)
+            : null;
+        ProcessArchitectureInfo architecture = ProcessArchitectureClassifier.Classify(
+            processMachine,
+            nativeMachine,
+            imageArchitecture?.Machine,
+            imageArchitecture?.HasArm64XMetadata ?? false);
+        if (!architecture.IsCompatibility)
+        {
+            return ProcessEnrichmentInfo.NotCompatibility;
+        }
+
+        return new ProcessEnrichmentInfo(
+            architecture.DisplayName,
+            executablePath,
+            TryReadPackageFullName(process),
+            TryReadPublisherIdentity(executablePath));
     }
 
     private static PeImageArchitecture? TryReadImageArchitecture(string? path)
@@ -118,6 +169,26 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         }
 
         return new string(buffer, 0, checked((int)length));
+    }
+
+    private static DateTimeOffset? TryReadProcessStartTime(Process process)
+    {
+        try
+        {
+            return new DateTimeOffset(process.StartTime.ToUniversalTime(), TimeSpan.Zero);
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
     }
 
     private static string? TryReadPackageFullName(Process process)
