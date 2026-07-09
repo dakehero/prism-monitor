@@ -97,8 +97,8 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
-                    Content="Filters"
-                    Tag="Filters">
+                    Content="Rules"
+                    Tag="Rules">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Filter" />
                     </NavigationViewItem.Icon>
@@ -477,7 +477,7 @@
                 </Grid>
 
                 <Grid
-                    x:Name="FiltersPage"
+                    x:Name="RulesPage"
                     RowSpacing="16"
                     Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -487,11 +487,11 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock
-                            x:Name="FiltersHeading"
+                            x:Name="RulesHeading"
                             HorizontalAlignment="Left"
                             FontSize="18"
                             FontWeight="SemiBold"
-                            Text="Ignored apps"
+                            Text="App rules"
                             TextAlignment="Left" />
 
                         <Grid Grid.Row="1" ColumnSpacing="8">
@@ -499,14 +499,14 @@
                                 <ColumnDefinition Width="280" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="IgnoreNameTextBox" PlaceholderText="Process name to ignore" />
-                            <Button Grid.Column="1" Click="AddIgnoredButton_Click" Content="Add ignored app" />
+                            <TextBox x:Name="RuleNameTextBox" PlaceholderText="Process name rule" />
+                            <Button Grid.Column="1" Click="AddRuleButton_Click" Content="Add rule" />
                         </Grid>
 
                         <ListView
-                            x:Name="FilterListView"
+                            x:Name="RuleListView"
                             Grid.Row="2"
-                            ItemsSource="{x:Bind FilterRows, Mode=OneWay}"
+                            ItemsSource="{x:Bind RuleRows, Mode=OneWay}"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                             ScrollViewer.HorizontalScrollMode="Disabled"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -519,15 +519,37 @@
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="local:FilterRow">
+                                <DataTemplate x:DataType="local:RuleRow">
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <Grid Padding="8,6" ColumnSpacing="8">
+                                        <Grid Padding="8,8" ColumnSpacing="12">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneTime}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
-                                            <Button Grid.Column="1" HorizontalAlignment="Left" Click="RemoveIgnoredButton_Click" Content="Remove" Tag="{x:Bind Name, Mode=OneTime}" />
+                                            <StackPanel Spacing="2">
+                                                <TextBlock
+                                                    HorizontalAlignment="Left"
+                                                    FontWeight="SemiBold"
+                                                    Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <TextBlock
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    MaxLines="2"
+                                                    Text="{x:Bind MatchSummary, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <TextBlock
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                    Text="{x:Bind TargetsText, Mode=OneWay}"
+                                                    TextAlignment="Left" />
+                                            </StackPanel>
+                                            <Button
+                                                Grid.Column="1"
+                                                HorizontalAlignment="Left"
+                                                Click="RemoveRuleButton_Click"
+                                                Content="Remove"
+                                                Tag="{x:Bind Rule, Mode=OneWay}" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

@@ -25,7 +25,6 @@ public sealed partial class MainWindow : Window
     private readonly DispatcherTimer _refreshTimer = new();
     // AppWindow uses window pixels; on the current 200% display scale this is about 818 x 488 XAML effective pixels.
     private readonly SizeInt32 _windowSize = new(1636, 975);
-    private readonly HashSet<string> _cachedIgnoredNames = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<LaunchHistorySummary> _cachedHistorySummaries = [];
     private bool _isRefreshing;
     private bool _isRefreshingHistory;
@@ -35,7 +34,7 @@ public sealed partial class MainWindow : Window
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
     public ObservableCollection<HistoryRow> HistoryRows { get; } = [];
-    public ObservableCollection<FilterRow> FilterRows { get; } = [];
+    public ObservableCollection<RuleRow> RuleRows { get; } = [];
     public ObservableCollection<NotificationLevelOption> NotificationLevelOptions { get; } =
     [
         new(NotificationLevel.X86Only, "x86 only"),
@@ -107,7 +106,6 @@ public sealed partial class MainWindow : Window
         _isRefreshing = true;
         try
         {
-            await RefreshIgnoredCacheAsync();
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
             IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
             MonitoringSettings settings = await _settingsStore.GetAsync();
@@ -134,7 +132,6 @@ public sealed partial class MainWindow : Window
             do
             {
                 _refreshHistoryAgain = false;
-                await RefreshIgnoredCacheAsync();
                 IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
                 _cachedHistorySummaries = await _launchHistoryStore.GetSummaryWithRulesAsync(
                     DateTimeOffset.UtcNow,
@@ -212,15 +209,15 @@ public sealed partial class MainWindow : Window
         }
 
         await _ignoredProcessStore.AddAsync(row.Name);
-        await ReloadIgnoredNamesAsync();
+        await ReloadRulesAsync();
         await RefreshAsync();
     }
 
-    private async void AddIgnoredButton_Click(object sender, RoutedEventArgs e)
+    private async void AddRuleButton_Click(object sender, RoutedEventArgs e)
     {
-        await _ignoredProcessStore.AddAsync(IgnoreNameTextBox.Text);
-        IgnoreNameTextBox.Text = string.Empty;
-        await ReloadIgnoredNamesAsync();
+        await _ignoredProcessStore.AddAsync(RuleNameTextBox.Text);
+        RuleNameTextBox.Text = string.Empty;
+        await ReloadRulesAsync();
         await RefreshAsync();
     }
 
@@ -290,7 +287,7 @@ public sealed partial class MainWindow : Window
 
     private async void Root_Loaded(object sender, RoutedEventArgs e)
     {
-        await ReloadIgnoredNamesAsync();
+        await ReloadRulesAsync();
         await LoadSettingsControlsAsync();
     }
 
@@ -304,15 +301,19 @@ public sealed partial class MainWindow : Window
         await SaveSettingsFromControlsAsync();
     }
 
-    private async void RemoveIgnoredButton_Click(object sender, RoutedEventArgs e)
+    private async void RemoveRuleButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string ignoredName })
+        if (sender is not Button { Tag: AppIdentityRule rule })
         {
             return;
         }
 
-        await _ignoredProcessStore.RemoveAsync(ignoredName);
-        await ReloadIgnoredNamesAsync();
+        if (!string.IsNullOrWhiteSpace(rule.ProcessName))
+        {
+            await _ignoredProcessStore.RemoveAsync(rule.ProcessName);
+        }
+
+        await ReloadRulesAsync();
         await RefreshAsync();
     }
 
@@ -328,9 +329,9 @@ public sealed partial class MainWindow : Window
         {
             await RefreshHistoryAsync();
         }
-        else if (string.Equals(selectedTag, "Filters", StringComparison.Ordinal))
+        else if (string.Equals(selectedTag, "Rules", StringComparison.Ordinal))
         {
-            await ReloadIgnoredNamesAsync();
+            await ReloadRulesAsync();
         }
     }
 
@@ -339,7 +340,7 @@ public sealed partial class MainWindow : Window
         ProcessesPage.Visibility = string.Equals(selectedTag, "Processes", StringComparison.Ordinal)
             ? Visibility.Visible
             : Visibility.Collapsed;
-        FiltersPage.Visibility = string.Equals(selectedTag, "Filters", StringComparison.Ordinal)
+        RulesPage.Visibility = string.Equals(selectedTag, "Rules", StringComparison.Ordinal)
             ? Visibility.Visible
             : Visibility.Collapsed;
         HistoryPage.Visibility = string.Equals(selectedTag, "History", StringComparison.Ordinal)
@@ -373,72 +374,62 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
-    private async Task ReloadIgnoredNamesAsync()
+    private async Task ReloadRulesAsync()
     {
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-        await ApplyIgnoredNamesAsync(ignoredNames);
+        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
+        ApplyRuleRows(rules);
     }
 
-    private async Task RefreshIgnoredCacheAsync()
+    private void ApplyRuleRows(IReadOnlyList<AppIdentityRule> rules)
     {
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-        ApplyIgnoredCache(ignoredNames);
-    }
+        Dictionary<string, RuleRow> rowsByKey = RuleRows.ToDictionary(
+            row => RuleRow.CreateKey(row.Rule),
+            StringComparer.OrdinalIgnoreCase);
+        HashSet<string> nextKeys = rules
+            .Select(RuleRow.CreateKey)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-    private Task ApplyIgnoredNamesAsync(IReadOnlyList<string> ignoredNames)
-    {
-        ApplyIgnoredCache(ignoredNames);
-        ApplyFilterRows(ignoredNames);
-        return Task.CompletedTask;
-    }
-
-    private void ApplyIgnoredCache(IReadOnlyList<string> ignoredNames)
-    {
-        _cachedIgnoredNames.Clear();
-        foreach (string ignoredName in ignoredNames)
+        foreach (RuleRow rowToRemove in RuleRows
+            .Where(row => !nextKeys.Contains(RuleRow.CreateKey(row.Rule)))
+            .ToList())
         {
-            _cachedIgnoredNames.Add(ignoredName);
-        }
-    }
-
-    private void ApplyFilterRows(IReadOnlyList<string> ignoredNames)
-    {
-        HashSet<string> nextIgnoredNames = ignoredNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (FilterRow rowToRemove in FilterRows.Where(row => !nextIgnoredNames.Contains(row.Name)).ToList())
-        {
-            FilterRows.Remove(rowToRemove);
+            RuleRows.Remove(rowToRemove);
         }
 
-        foreach (string ignoredName in ignoredNames)
+        foreach (AppIdentityRule rule in rules)
         {
-            if (IndexOfFilterRow(ignoredName) < 0)
+            string key = RuleRow.CreateKey(rule);
+            if (rowsByKey.TryGetValue(key, out RuleRow? row))
             {
-                FilterRows.Add(new FilterRow(ignoredName));
+                row.Update(rule);
+            }
+            else
+            {
+                RuleRows.Add(new RuleRow(rule));
             }
         }
 
-        MoveFilterRowsIntoSortedOrder(ignoredNames);
+        MoveRuleRowsIntoSortedOrder(rules);
     }
 
-    private void MoveFilterRowsIntoSortedOrder(IReadOnlyList<string> ignoredNames)
+    private void MoveRuleRowsIntoSortedOrder(IReadOnlyList<AppIdentityRule> rules)
     {
-        for (int targetIndex = 0; targetIndex < ignoredNames.Count; targetIndex++)
+        for (int targetIndex = 0; targetIndex < rules.Count; targetIndex++)
         {
-            string ignoredName = ignoredNames[targetIndex];
-            int currentIndex = IndexOfFilterRow(ignoredName);
+            string key = RuleRow.CreateKey(rules[targetIndex]);
+            int currentIndex = IndexOfRuleRow(key);
             if (currentIndex >= 0 && currentIndex != targetIndex)
             {
-                FilterRows.Move(currentIndex, targetIndex);
+                RuleRows.Move(currentIndex, targetIndex);
             }
         }
     }
 
-    private int IndexOfFilterRow(string ignoredName)
+    private int IndexOfRuleRow(string ruleKey)
     {
-        for (int index = 0; index < FilterRows.Count; index++)
+        for (int index = 0; index < RuleRows.Count; index++)
         {
-            if (string.Equals(FilterRows[index].Name, ignoredName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(RuleRow.CreateKey(RuleRows[index].Rule), ruleKey, StringComparison.OrdinalIgnoreCase))
             {
                 return index;
             }
