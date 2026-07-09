@@ -35,6 +35,34 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(app, "OpenNotificationTargetAsync");
     }
 
+    [TestMethod]
+    public void AppRoutesTrayToastAndHistoryThroughRuleFilteredSnapshots()
+    {
+        string appPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "App.xaml.cs"));
+        string app = File.ReadAllText(appPath);
+
+        StringAssert.Contains(app, "IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync()");
+        StringAssert.Contains(app, "return MonitoringSnapshotBuilder.Build(processes, rules, settings)");
+        StringAssert.Contains(app, "return CreateTrayStatus(snapshot.TrayProcesses)");
+        StringAssert.Contains(app, "snapshot.HistoryProcesses");
+        StringAssert.Contains(app, "_trayIcon?.UpdateStatus(CreateTrayStatus(snapshot.TrayProcesses))");
+        StringAssert.Contains(app, "_processNotifier.CaptureNewProcesses(snapshot.NotifiableProcesses)");
+        StringAssert.Contains(app, "_toastService?.ShowNewProcess(process)");
+    }
+
+    [TestMethod]
+    public void TrayContextMenuUsesCachedTopProcessesAndExitCommand()
+    {
+        string trayPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "Tray", "ShellTrayIcon.cs"));
+        string tray = File.ReadAllText(trayPath);
+
+        StringAssert.Contains(tray, "TrayStatus status = _cachedStatus");
+        StringAssert.Contains(tray, "status.TopProcesses");
+        StringAssert.Contains(tray, "ShellNotifyIconInterop.MenuDisabled");
+        StringAssert.Contains(tray, "\"Exit\"");
+        StringAssert.Contains(tray, "_exitRequested()");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
