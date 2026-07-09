@@ -48,7 +48,15 @@ public sealed class IgnoredProcessStore(string filePath)
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await _ruleStore.RemoveRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            if (IsLegacyNameRule(rule))
+            {
+                await _ruleStore.RemoveProcessNameRuleAsync(rule.ProcessName!, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await _ruleStore.RemoveRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            }
+
             IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
             await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
         }
@@ -127,6 +135,16 @@ public sealed class IgnoredProcessStore(string filePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool IsLegacyNameRule(AppIdentityRule rule)
+    {
+        return rule.Targets == SuppressionTarget.All
+            && !string.IsNullOrWhiteSpace(rule.ProcessName)
+            && string.IsNullOrWhiteSpace(rule.ExecutablePath)
+            && string.IsNullOrWhiteSpace(rule.PackageIdentity)
+            && string.IsNullOrWhiteSpace(rule.PublisherIdentity)
+            && string.IsNullOrWhiteSpace(rule.Architecture);
     }
 }
 

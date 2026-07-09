@@ -89,6 +89,19 @@ public sealed class IgnoredProcessStoreTests
         Assert.IsEmpty(await store.GetRulesAsync());
     }
 
+    [TestMethod]
+    public async Task RemoveRuleAsync_RemovesLegacyNameRule()
+    {
+        IgnoredProcessStore store = CreateStore();
+        await store.AddAsync("Chrome");
+        AppIdentityRule rule = (await store.GetRulesAsync()).Single();
+
+        await store.RemoveRuleAsync(rule);
+
+        Assert.IsEmpty(await store.GetRulesAsync());
+        Assert.IsEmpty(await store.GetIgnoredNamesAsync());
+    }
+
     private IgnoredProcessStore CreateStore()
     {
         _temporaryDirectory ??= Path.Combine(Path.GetTempPath(), "PrismMonitorTests", Guid.NewGuid().ToString("N"));
