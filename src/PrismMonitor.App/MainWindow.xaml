@@ -530,10 +530,13 @@
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
                                         <Grid Padding="8,8" ColumnSpacing="12">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" MinWidth="0" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="2">
+                                            <StackPanel
+                                                MinWidth="0"
+                                                HorizontalAlignment="Stretch"
+                                                Spacing="2">
                                                 <TextBlock
                                                     HorizontalAlignment="Left"
                                                     FontWeight="SemiBold"
@@ -545,7 +548,8 @@
                                                     MaxLines="2"
                                                     Text="{x:Bind MatchSummary, Mode=OneWay}"
                                                     TextAlignment="Left"
-                                                    TextTrimming="CharacterEllipsis" />
+                                                    TextTrimming="CharacterEllipsis"
+                                                    TextWrapping="WrapWholeWords" />
                                                 <TextBlock
                                                     Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                                     Text="{x:Bind TargetsText, Mode=OneWay}"
@@ -554,6 +558,7 @@
                                             <Button
                                                 Grid.Column="1"
                                                 HorizontalAlignment="Left"
+                                                VerticalAlignment="Center"
                                                 Click="RemoveRuleButton_Click"
                                                 Content="Remove"
                                                 Tag="{x:Bind Rule, Mode=OneWay}" />

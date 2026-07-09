@@ -110,6 +110,9 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind MatchSummary, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind TargetsText, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Click=\"RemoveRuleButton_Click\"");
+        StringAssert.Contains(rulesPage, "<ColumnDefinition Width=\"*\" MinWidth=\"0\" />");
+        StringAssert.Contains(rulesPage, "TextWrapping=\"WrapWholeWords\"");
+        StringAssert.Contains(rulesPage, "VerticalAlignment=\"Center\"");
         Assert.IsFalse(
             xaml.Contains("x:Name=\"FiltersPage\"", StringComparison.Ordinal)
                 || xaml.Contains("x:Name=\"FilterListView\"", StringComparison.Ordinal),

@@ -391,10 +391,14 @@ public sealed partial class MainWindow : Window
 
     private void ApplyRuleRows(IReadOnlyList<AppIdentityRule> rules)
     {
+        List<AppIdentityRule> sortedRules = rules
+            .OrderBy(rule => rule.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(RuleRow.CreateMatchSummary, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         Dictionary<string, RuleRow> rowsByKey = RuleRows.ToDictionary(
             row => RuleRow.CreateKey(row.Rule),
             StringComparer.OrdinalIgnoreCase);
-        HashSet<string> nextKeys = rules
+        HashSet<string> nextKeys = sortedRules
             .Select(RuleRow.CreateKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -405,7 +409,7 @@ public sealed partial class MainWindow : Window
             RuleRows.Remove(rowToRemove);
         }
 
-        foreach (AppIdentityRule rule in rules)
+        foreach (AppIdentityRule rule in sortedRules)
         {
             string key = RuleRow.CreateKey(rule);
             if (rowsByKey.TryGetValue(key, out RuleRow? row))
@@ -418,7 +422,7 @@ public sealed partial class MainWindow : Window
             }
         }
 
-        MoveRuleRowsIntoSortedOrder(rules);
+        MoveRuleRowsIntoSortedOrder(sortedRules);
     }
 
     private void MoveRuleRowsIntoSortedOrder(IReadOnlyList<AppIdentityRule> rules)

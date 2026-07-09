@@ -65,7 +65,7 @@ public sealed class RuleRow : INotifyPropertyChanged
             ((int)rule.Targets).ToString());
     }
 
-    private static string CreateMatchSummary(AppIdentityRule rule)
+    public static string CreateMatchSummary(AppIdentityRule rule)
     {
         List<string> parts = [];
         AddPart(parts, "Package", rule.PackageIdentity);

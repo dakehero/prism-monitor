@@ -333,8 +333,7 @@ public sealed class AppIdentityRuleStore(string rulesFilePath, string? legacyIgn
         return !string.IsNullOrWhiteSpace(rule.ProcessName)
             || !string.IsNullOrWhiteSpace(rule.ExecutablePath)
             || !string.IsNullOrWhiteSpace(rule.PackageIdentity)
-            || !string.IsNullOrWhiteSpace(rule.PublisherIdentity)
-            || !string.IsNullOrWhiteSpace(rule.Architecture);
+            || !string.IsNullOrWhiteSpace(rule.PublisherIdentity);
     }
 
     private static bool IsSameProcessNameRule(AppIdentityRule rule, string processName, SuppressionTarget targets)

@@ -176,6 +176,19 @@ public sealed class AppIdentityRuleStoreTests
     }
 
     [TestMethod]
+    public async Task AddOrUpdateRuleAsync_DiscardsArchitectureOnlyRules()
+    {
+        AppIdentityRuleStore store = CreateStore();
+
+        await store.AddOrUpdateRuleAsync(new AppIdentityRule(
+            "Architecture only",
+            Architecture: "x64",
+            Targets: SuppressionTarget.All));
+
+        Assert.IsEmpty(await store.GetRulesAsync());
+    }
+
+    [TestMethod]
     public async Task RemoveRuleAsync_RemovesMatchingRuleOnly()
     {
         AppIdentityRuleStore store = CreateStore();
