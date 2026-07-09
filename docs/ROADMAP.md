@@ -218,6 +218,7 @@ Current branch state:
 - Existing rules can change suppression target from the Rules view.
 - Architecture-only rules are rejected so one broad architecture value cannot hide many unrelated apps.
 - Automated Core tests cover app identity rules across Processes, History, tray, and Toast snapshot outputs.
+- v0.7.2 acceptance tests cover running-process suppression/restoration, history-created rules after process exit, target editing, and legacy ignored-name migration.
 - A live UI review attempt is documented in `docs/verification/2026-07-10-v0.7.2-live-ui-review.md`; current automation can read the window accessibility tree but cannot capture or activate the WinUI window.
 
 Remaining before v0.7.2 is done:
