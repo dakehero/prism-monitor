@@ -1,23 +1,31 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using PrismMonitor.Core.Rules;
 
 namespace PrismMonitor.Core.Processes;
 
 public sealed class IgnoredProcessStore(string filePath)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly AppIdentityRuleStore _ruleStore = new(
+        Path.Combine(Path.GetDirectoryName(filePath) ?? string.Empty, "app-rules.json"),
+        filePath);
 
     public async Task<IReadOnlyList<string>> GetIgnoredNamesAsync(CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await ReadNamesAsync(cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _gate.Release();
-        }
+        IReadOnlyList<AppIdentityRule> rules = await _ruleStore.GetRulesAsync(cancellationToken).ConfigureAwait(false);
+        return NormalizeAndSort(rules
+            .Where(rule => rule.Targets == SuppressionTarget.All
+                && string.IsNullOrWhiteSpace(rule.ExecutablePath)
+                && string.IsNullOrWhiteSpace(rule.PackageIdentity)
+                && string.IsNullOrWhiteSpace(rule.PublisherIdentity)
+                && string.IsNullOrWhiteSpace(rule.Architecture))
+            .Select(rule => rule.ProcessName ?? string.Empty));
+    }
+
+    public Task<IReadOnlyList<AppIdentityRule>> GetRulesAsync(CancellationToken cancellationToken = default)
+    {
+        return _ruleStore.GetRulesAsync(cancellationToken);
     }
 
     public async Task AddAsync(string processName, CancellationToken cancellationToken = default)
@@ -31,16 +39,9 @@ public sealed class IgnoredProcessStore(string filePath)
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<string> names = await ReadNamesAsync(cancellationToken).ConfigureAwait(false);
-            if (names.Any(name => string.Equals(
-                    IgnoredProcessFilter.NormalizeName(name),
-                    normalizedName,
-                    StringComparison.OrdinalIgnoreCase)))
-            {
-                return;
-            }
-
-            names.Add(normalizedName);
+            await _ruleStore.AddProcessNameRuleAsync(normalizedName, SuppressionTarget.All, cancellationToken)
+                .ConfigureAwait(false);
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
             await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -60,35 +61,14 @@ public sealed class IgnoredProcessStore(string filePath)
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<string> names = await ReadNamesAsync(cancellationToken).ConfigureAwait(false);
-            names.RemoveAll(name => string.Equals(
-                IgnoredProcessFilter.NormalizeName(name),
-                normalizedName,
-                StringComparison.OrdinalIgnoreCase));
-
+            await _ruleStore.RemoveProcessNameRuleAsync(normalizedName, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
             await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
         }
-    }
-
-    private async Task<List<string>> ReadNamesAsync(CancellationToken cancellationToken)
-    {
-        if (!File.Exists(filePath))
-        {
-            return [];
-        }
-
-        await using FileStream stream = File.OpenRead(filePath);
-        string[]? names = await JsonSerializer.DeserializeAsync(
-                stream,
-                IgnoredProcessJsonContext.Default.StringArray,
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        return NormalizeAndSort(names ?? []);
     }
 
     private async Task WriteNamesAsync(IEnumerable<string> names, CancellationToken cancellationToken)

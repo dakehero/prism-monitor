@@ -9,7 +9,9 @@ public sealed record LaunchHistorySummary(
     DateTimeOffset FirstSeenAt,
     DateTimeOffset LastSeenAt,
     string? LastExecutablePath,
-    int LastProcessId = 0)
+    int LastProcessId = 0,
+    string? PackageIdentity = null,
+    string? PublisherIdentity = null)
 {
     [JsonIgnore]
     public bool IsIgnored { get; init; }

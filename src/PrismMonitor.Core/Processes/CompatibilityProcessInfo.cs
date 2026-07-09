@@ -5,4 +5,6 @@ public sealed record CompatibilityProcessInfo(
     int ProcessId,
     string Architecture,
     TimeSpan CpuTime,
-    string? ExecutablePath = null);
+    string? ExecutablePath = null,
+    string? PackageIdentity = null,
+    string? PublisherIdentity = null);

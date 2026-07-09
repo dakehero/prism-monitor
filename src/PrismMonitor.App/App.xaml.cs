@@ -6,6 +6,7 @@ using PrismMonitor.Core.History;
 using PrismMonitor.Core.Notifications;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Power;
+using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Diagnostics;
@@ -116,10 +117,10 @@ public partial class App : Application
     private async Task<TrayStatus> GetTrayStatusAsync()
     {
         IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
         MonitoringSettings settings = await _settingsStore.GetAsync();
         IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-            IgnoredProcessFilter.Filter(processes, ignoredNames),
+            AppIdentityRuleFilter.FilterProcesses(processes, rules, SuppressionTarget.Tray),
             settings);
         return CreateTrayStatus(visibleProcesses);
     }
@@ -241,13 +242,13 @@ public partial class App : Application
         window.Activate();
 
         MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
-        CompatibilityProcessInfo? currentProcess = snapshot.VisibleProcesses.FirstOrDefault(
+        CompatibilityProcessInfo? currentProcess = snapshot.Processes.FirstOrDefault(
             process => process.ProcessId == processId
                 && string.Equals(process.Name, processName, StringComparison.OrdinalIgnoreCase));
 
         if (currentProcess is not null)
         {
-            await window.ShowProcessesAndFocusAsync(processId, snapshot.VisibleProcesses);
+            await window.ShowProcessesAndFocusAsync(processId, snapshot.Processes);
             return;
         }
 
@@ -303,14 +304,14 @@ public partial class App : Application
             MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
 
             IReadOnlyList<LaunchHistoryEvent> historyEvents = _launchHistoryRecorder.CaptureNewEvents(
-                snapshot.VisibleProcesses,
+                snapshot.HistoryProcesses,
                 DateTimeOffset.UtcNow);
             foreach (LaunchHistoryEvent historyEvent in historyEvents)
             {
                 await _launchHistoryStore.AppendAsync(historyEvent);
             }
 
-            _trayIcon?.UpdateStatus(CreateTrayStatus(snapshot.VisibleProcesses));
+            _trayIcon?.UpdateStatus(CreateTrayStatus(snapshot.TrayProcesses));
             IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(snapshot.NotifiableProcesses);
 
             foreach (CompatibilityProcessInfo process in newProcesses)
@@ -331,19 +332,37 @@ public partial class App : Application
     private async Task<MonitoringSnapshot> ReadMonitoringSnapshotAsync()
     {
         IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
+        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
         MonitoringSettings settings = await _settingsStore.GetAsync();
-        IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-            IgnoredProcessFilter.Filter(processes, ignoredNames),
+        IReadOnlyList<CompatibilityProcessInfo> includedProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
+            processes,
             settings);
+        IReadOnlyList<CompatibilityProcessInfo> trayProcesses = AppIdentityRuleFilter.FilterProcesses(
+            includedProcesses,
+            rules,
+            SuppressionTarget.Tray);
+        IReadOnlyList<CompatibilityProcessInfo> processPageProcesses = AppIdentityRuleFilter.FilterProcesses(
+            includedProcesses,
+            rules,
+            SuppressionTarget.Processes);
+        IReadOnlyList<CompatibilityProcessInfo> historyProcesses = AppIdentityRuleFilter.FilterProcesses(
+            includedProcesses,
+            rules,
+            SuppressionTarget.History);
         IReadOnlyList<CompatibilityProcessInfo> notifiableProcesses = ArchitectureProcessFilter.FilterNotifiableProcesses(
-            visibleProcesses,
+            includedProcesses,
             settings);
+        notifiableProcesses = AppIdentityRuleFilter.FilterProcesses(
+            notifiableProcesses,
+            rules,
+            SuppressionTarget.Toast);
 
-        return new MonitoringSnapshot(visibleProcesses, notifiableProcesses);
+        return new MonitoringSnapshot(processPageProcesses, trayProcesses, notifiableProcesses, historyProcesses);
     }
 }
 
 internal sealed record MonitoringSnapshot(
-    IReadOnlyList<CompatibilityProcessInfo> VisibleProcesses,
-    IReadOnlyList<CompatibilityProcessInfo> NotifiableProcesses);
+    IReadOnlyList<CompatibilityProcessInfo> Processes,
+    IReadOnlyList<CompatibilityProcessInfo> TrayProcesses,
+    IReadOnlyList<CompatibilityProcessInfo> NotifiableProcesses,
+    IReadOnlyList<CompatibilityProcessInfo> HistoryProcesses);

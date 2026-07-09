@@ -16,6 +16,8 @@ public sealed class HistoryRow : INotifyPropertyChanged
     private string _summaryLine;
     private string _timeRangeLine;
     private string _executablePath;
+    private string _packageIdentity;
+    private string _publisherIdentity;
     private string _ignoredText;
     private ImageSource _icon;
 
@@ -27,6 +29,8 @@ public sealed class HistoryRow : INotifyPropertyChanged
         string lastSeen,
         int lastProcessId,
         string executablePath,
+        string packageIdentity,
+        string publisherIdentity,
         string ignoredText,
         ImageSource icon)
     {
@@ -40,6 +44,8 @@ public sealed class HistoryRow : INotifyPropertyChanged
         _summaryLine = CreateSummaryLine(launchCount, lastSeen);
         _timeRangeLine = CreateTimeRangeLine(firstSeen, lastSeen);
         _executablePath = executablePath;
+        _packageIdentity = packageIdentity;
+        _publisherIdentity = publisherIdentity;
         _ignoredText = ignoredText;
         _icon = icon;
     }
@@ -126,6 +132,18 @@ public sealed class HistoryRow : INotifyPropertyChanged
         private set => SetProperty(ref _executablePath, value);
     }
 
+    public string PackageIdentity
+    {
+        get => _packageIdentity;
+        private set => SetProperty(ref _packageIdentity, value);
+    }
+
+    public string PublisherIdentity
+    {
+        get => _publisherIdentity;
+        private set => SetProperty(ref _publisherIdentity, value);
+    }
+
     public string IgnoredText
     {
         get => _ignoredText;
@@ -146,6 +164,8 @@ public sealed class HistoryRow : INotifyPropertyChanged
         string lastSeen,
         int lastProcessId,
         string executablePath,
+        string packageIdentity,
+        string publisherIdentity,
         string ignoredText,
         ImageSource icon)
     {
@@ -156,6 +176,8 @@ public sealed class HistoryRow : INotifyPropertyChanged
         LastSeen = lastSeen;
         LastProcessId = lastProcessId;
         ExecutablePath = executablePath;
+        PackageIdentity = packageIdentity;
+        PublisherIdentity = publisherIdentity;
         IgnoredText = ignoredText;
         Icon = icon;
     }

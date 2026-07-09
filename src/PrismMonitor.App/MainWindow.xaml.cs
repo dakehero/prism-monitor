@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
 using PrismMonitor.Core.History;
 using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.App.Processes;
 using Windows.ApplicationModel.DataTransfer;
@@ -99,9 +100,10 @@ public sealed partial class MainWindow : Window
         {
             await RefreshIgnoredCacheAsync();
             IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
+            IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
             MonitoringSettings settings = await _settingsStore.GetAsync();
             IReadOnlyList<CompatibilityProcessInfo> visibleProcesses = ArchitectureProcessFilter.FilterVisibleProcesses(
-                IgnoredProcessFilter.Filter(processes, _cachedIgnoredNames),
+                AppIdentityRuleFilter.FilterProcesses(processes, rules, SuppressionTarget.Processes),
                 settings);
             await ApplyProcessSnapshotAsync(visibleProcesses);
         }
@@ -126,10 +128,10 @@ public sealed partial class MainWindow : Window
             {
                 _refreshHistoryAgain = false;
                 await RefreshIgnoredCacheAsync();
-                HashSet<string> ignoredNamesSnapshot = _cachedIgnoredNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-                _cachedHistorySummaries = await _launchHistoryStore.GetSummaryAsync(
+                IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
+                _cachedHistorySummaries = await _launchHistoryStore.GetSummaryWithRulesAsync(
                     DateTimeOffset.UtcNow,
-                    ignoredNamesSnapshot);
+                    rules);
                 await ApplyCachedHistoryFilterAsync();
             }
             while (_refreshHistoryAgain);
@@ -560,14 +562,14 @@ public sealed partial class MainWindow : Window
     private async Task ApplyHistorySnapshotAsync(IReadOnlyList<LaunchHistorySummary> summaries)
     {
         Dictionary<string, HistoryRow> rowsByKey = HistoryRows.ToDictionary(
-            row => GetHistoryKey(row.ProcessName, row.Architecture, row.ExecutablePath),
+            GetHistoryKey,
             StringComparer.OrdinalIgnoreCase);
         HashSet<string> summaryKeys = summaries
-            .Select(summary => GetHistoryKey(summary.ProcessName, summary.Architecture, summary.LastExecutablePath ?? string.Empty))
+            .Select(GetHistoryKey)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (HistoryRow removedRow in HistoryRows
-            .Where(row => !summaryKeys.Contains(GetHistoryKey(row.ProcessName, row.Architecture, row.ExecutablePath)))
+            .Where(row => !summaryKeys.Contains(GetHistoryKey(row)))
             .ToList())
         {
             HistoryRows.Remove(removedRow);
@@ -576,7 +578,9 @@ public sealed partial class MainWindow : Window
         foreach (LaunchHistorySummary summary in summaries)
         {
             string executablePath = summary.LastExecutablePath ?? string.Empty;
-            string key = GetHistoryKey(summary.ProcessName, summary.Architecture, executablePath);
+            string packageIdentity = summary.PackageIdentity ?? string.Empty;
+            string publisherIdentity = summary.PublisherIdentity ?? string.Empty;
+            string key = GetHistoryKey(summary);
             if (rowsByKey.TryGetValue(key, out HistoryRow? row))
             {
                 row.Update(
@@ -587,6 +591,8 @@ public sealed partial class MainWindow : Window
                     FormatHistoryTimestamp(summary.LastSeenAt),
                     summary.LastProcessId,
                     executablePath,
+                    packageIdentity,
+                    publisherIdentity,
                     summary.IsIgnored ? "Ignored" : string.Empty,
                     await _iconProvider.GetIconAsync(summary.ProcessName, summary.LastExecutablePath));
             }
@@ -600,6 +606,8 @@ public sealed partial class MainWindow : Window
                     FormatHistoryTimestamp(summary.LastSeenAt),
                     summary.LastProcessId,
                     executablePath,
+                    packageIdentity,
+                    publisherIdentity,
                     summary.IsIgnored ? "Ignored" : string.Empty,
                     await _iconProvider.GetIconAsync(summary.ProcessName, summary.LastExecutablePath)));
             }
@@ -641,10 +649,7 @@ public sealed partial class MainWindow : Window
         for (int targetIndex = 0; targetIndex < summaries.Count; targetIndex++)
         {
             LaunchHistorySummary summary = summaries[targetIndex];
-            int currentIndex = IndexOfHistoryRow(
-                summary.ProcessName,
-                summary.Architecture,
-                summary.LastExecutablePath ?? string.Empty);
+            int currentIndex = IndexOfHistoryRow(summary);
             if (currentIndex >= 0 && currentIndex != targetIndex)
             {
                 HistoryRows.Move(currentIndex, targetIndex);
@@ -652,14 +657,14 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private int IndexOfHistoryRow(string processName, string architecture, string executablePath)
+    private int IndexOfHistoryRow(LaunchHistorySummary summary)
     {
-        string key = GetHistoryKey(processName, architecture, executablePath);
+        string key = GetHistoryKey(summary);
         for (int index = 0; index < HistoryRows.Count; index++)
         {
             HistoryRow row = HistoryRows[index];
             if (string.Equals(
-                GetHistoryKey(row.ProcessName, row.Architecture, row.ExecutablePath),
+                GetHistoryKey(row),
                 key,
                 StringComparison.OrdinalIgnoreCase))
             {
@@ -670,9 +675,43 @@ public sealed partial class MainWindow : Window
         return -1;
     }
 
-    private static string GetHistoryKey(string processName, string architecture, string executablePath)
+    private static string GetHistoryKey(HistoryRow row)
     {
-        return string.Concat(processName, '\u001f', architecture, '\u001f', executablePath);
+        return GetHistoryKey(
+            row.ProcessName,
+            row.Architecture,
+            row.ExecutablePath,
+            row.PackageIdentity,
+            row.PublisherIdentity);
+    }
+
+    private static string GetHistoryKey(LaunchHistorySummary summary)
+    {
+        return GetHistoryKey(
+            summary.ProcessName,
+            summary.Architecture,
+            summary.LastExecutablePath ?? string.Empty,
+            summary.PackageIdentity ?? string.Empty,
+            summary.PublisherIdentity ?? string.Empty);
+    }
+
+    private static string GetHistoryKey(
+        string processName,
+        string architecture,
+        string executablePath,
+        string packageIdentity,
+        string publisherIdentity)
+    {
+        return string.Concat(
+            processName,
+            '\u001f',
+            architecture,
+            '\u001f',
+            executablePath,
+            '\u001f',
+            packageIdentity,
+            '\u001f',
+            publisherIdentity);
     }
 
     private LaunchHistoryQuery GetHistoryQueryFromControls()

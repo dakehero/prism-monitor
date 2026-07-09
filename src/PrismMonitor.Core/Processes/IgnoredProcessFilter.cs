@@ -1,3 +1,5 @@
+using PrismMonitor.Core.Rules;
+
 namespace PrismMonitor.Core.Processes;
 
 public static class IgnoredProcessFilter
@@ -23,12 +25,6 @@ public static class IgnoredProcessFilter
 
     public static string NormalizeName(string? processName)
     {
-        string normalized = (processName ?? string.Empty).Trim();
-        if (normalized.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-        {
-            normalized = normalized[..^4];
-        }
-
-        return normalized;
+        return AppIdentityRuleNormalizer.NormalizeProcessName(processName);
     }
 }

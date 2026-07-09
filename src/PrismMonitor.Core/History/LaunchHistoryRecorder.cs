@@ -25,7 +25,9 @@ public sealed class LaunchHistoryRecorder
                 process.ProcessId,
                 process.ExecutablePath,
                 StartedAt: null,
-                detectedAt));
+                detectedAt,
+                process.PackageIdentity,
+                process.PublisherIdentity));
         }
 
         return events;

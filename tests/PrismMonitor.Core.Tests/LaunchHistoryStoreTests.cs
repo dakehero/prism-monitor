@@ -1,4 +1,5 @@
 using PrismMonitor.Core.History;
+using PrismMonitor.Core.Rules;
 
 namespace PrismMonitor.Core.Tests;
 
@@ -103,6 +104,30 @@ public sealed class LaunchHistoryStoreTests
     }
 
     [TestMethod]
+    public async Task GetSummaryAsync_RebuildsOldSummaryWhenEventsContainRicherIdentity()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        Directory.CreateDirectory(_temporaryDirectory!);
+        await File.WriteAllTextAsync(
+            Path.Combine(_temporaryDirectory!, "launch-summary.json"),
+            """
+            [{"processName":"Tool","architecture":"x64","launchCount":2,"firstSeenAt":"2026-07-06T08:00:00+00:00","lastSeenAt":"2026-07-06T08:01:00+00:00","lastExecutablePath":"C:\\Other\\Tool.exe","lastProcessId":101}]
+            """);
+        await File.WriteAllLinesAsync(Path.Combine(_temporaryDirectory!, "launch-events.jsonl"), [
+            """{"processName":"Tool","architecture":"x64","processId":100,"executablePath":"C:\\Apps\\Tool.exe","startedAt":null,"detectedAt":"2026-07-06T08:00:00+00:00"}""",
+            """{"processName":"Tool","architecture":"x64","processId":101,"executablePath":"C:\\Other\\Tool.exe","startedAt":null,"detectedAt":"2026-07-06T08:01:00+00:00"}"""
+        ]);
+
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryAsync(now.AddMinutes(2), []);
+
+        Assert.HasCount(2, summaries);
+        CollectionAssert.AreEquivalent(
+            new[] { @"C:\Apps\Tool.exe", @"C:\Other\Tool.exe" },
+            summaries.Select(summary => summary.LastExecutablePath).ToArray());
+    }
+
+    [TestMethod]
     public async Task GetSummaryAsync_RebuildsSummaryMissingLastProcessId()
     {
         LaunchHistoryStore store = CreateStore();
@@ -159,11 +184,74 @@ public sealed class LaunchHistoryStoreTests
         Assert.IsFalse(File.Exists(Path.Combine(_temporaryDirectory!, "launch-summary.json")));
     }
 
+    [TestMethod]
+    public async Task GetSummaryAsync_AppliesPathRulesToIgnoredState()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        await store.AppendAsync(new LaunchHistoryEvent("ToolA", "x64", 100, @"C:\Apps\Tool.exe", null, now));
+        await store.AppendAsync(new LaunchHistoryEvent("ToolB", "x64", 101, @"C:\Other\Tool.exe", null, now.AddMinutes(1)));
+
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryWithRulesAsync(
+            now.AddMinutes(2),
+            [
+                new AppIdentityRule(
+                    "Ignore one path",
+                    ExecutablePath: @"c:\apps\tool.exe",
+                    Targets: SuppressionTarget.History)
+            ]);
+
+        Assert.IsTrue(FindSummary(summaries, "ToolA").IsIgnored);
+        Assert.IsFalse(FindSummary(summaries, "ToolB").IsIgnored);
+    }
+
+    [TestMethod]
+    public async Task GetSummaryAsync_KeepsSameNameDifferentPathSummariesSeparate()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        await store.AppendAsync(new LaunchHistoryEvent("Tool", "x64", 100, @"C:\Apps\Tool.exe", null, now));
+        await store.AppendAsync(new LaunchHistoryEvent("Tool", "x64", 101, @"C:\Other\Tool.exe", null, now.AddMinutes(1)));
+
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryWithRulesAsync(
+            now.AddMinutes(2),
+            [
+                new AppIdentityRule(
+                    "Ignore one path",
+                    ExecutablePath: @"c:\apps\tool.exe",
+                    Targets: SuppressionTarget.History)
+            ]);
+
+        Assert.HasCount(2, summaries);
+        Assert.IsTrue(FindSummaryByPath(summaries, @"C:\Apps\Tool.exe").IsIgnored);
+        Assert.IsFalse(FindSummaryByPath(summaries, @"C:\Other\Tool.exe").IsIgnored);
+    }
+
     private LaunchHistoryStore CreateStore()
     {
         _temporaryDirectory ??= Path.Combine(Path.GetTempPath(), "PrismMonitorTests", Guid.NewGuid().ToString("N"));
         return new LaunchHistoryStore(
             Path.Combine(_temporaryDirectory, "launch-events.jsonl"),
             Path.Combine(_temporaryDirectory, "launch-summary.json"));
+    }
+
+    private static LaunchHistorySummary FindSummary(
+        IEnumerable<LaunchHistorySummary> summaries,
+        string processName)
+    {
+        return summaries.Single(summary => string.Equals(
+            summary.ProcessName,
+            processName,
+            StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static LaunchHistorySummary FindSummaryByPath(
+        IEnumerable<LaunchHistorySummary> summaries,
+        string executablePath)
+    {
+        return summaries.Single(summary => string.Equals(
+            summary.LastExecutablePath,
+            executablePath,
+            StringComparison.OrdinalIgnoreCase));
     }
 }

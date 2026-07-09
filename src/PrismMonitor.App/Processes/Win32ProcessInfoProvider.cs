@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Reflection.PortableExecutable;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.App.Interop;
 
@@ -58,7 +60,9 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
                 process.Id,
                 architecture.DisplayName,
                 process.TotalProcessorTime,
-                executablePath);
+                executablePath,
+                PackageIdentity: TryReadPackageFullName(process),
+                PublisherIdentity: TryReadPublisherIdentity(executablePath));
         }
         catch (InvalidOperationException)
         {
@@ -114,6 +118,54 @@ internal sealed class Win32ProcessInfoProvider : IProcessInfoProvider
         }
 
         return new string(buffer, 0, checked((int)length));
+    }
+
+    private static string? TryReadPackageFullName(Process process)
+    {
+        uint length = 0;
+        int result = ProcessInterop.GetPackageFullName(process.SafeHandle, ref length, []);
+        if (result != ProcessInterop.ErrorInsufficientBuffer || length <= 1)
+        {
+            return null;
+        }
+
+        char[] buffer = new char[length];
+        result = ProcessInterop.GetPackageFullName(process.SafeHandle, ref length, buffer);
+        return result == 0 && length > 1
+            ? new string(buffer, 0, checked((int)length - 1))
+            : null;
+    }
+
+    private static string? TryReadPublisherIdentity(string? executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return null;
+        }
+
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using X509Certificate certificate = X509Certificate.CreateFromSignedFile(executablePath);
+#pragma warning restore SYSLIB0057
+            return string.IsNullOrWhiteSpace(certificate.Subject) ? null : certificate.Subject;
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 }
 

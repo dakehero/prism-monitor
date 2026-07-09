@@ -6,4 +6,6 @@ public sealed record LaunchHistoryEvent(
     int ProcessId,
     string? ExecutablePath,
     DateTimeOffset? StartedAt,
-    DateTimeOffset DetectedAt);
+    DateTimeOffset DetectedAt,
+    string? PackageIdentity = null,
+    string? PublisherIdentity = null);
