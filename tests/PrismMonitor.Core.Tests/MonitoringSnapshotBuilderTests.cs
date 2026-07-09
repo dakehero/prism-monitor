@@ -66,4 +66,69 @@ public sealed class MonitoringSnapshotBuilderTests
             new[] { "Legacy32" },
             snapshot.NotifiableProcesses.Select(process => process.Name).ToArray());
     }
+
+    [TestMethod]
+    public void Build_AppliesIdentityRulesConsistentlyAcrossRuntimeSurfaces()
+    {
+        CompatibilityProcessInfo[] processes =
+        [
+            new(
+                "AppleMusic",
+                10,
+                "ARM64EC",
+                TimeSpan.FromSeconds(9),
+                ExecutablePath: @"C:\Program Files\WindowsApps\AppleMusic.exe",
+                PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+                PublisherIdentity: "CN=Apple Inc."),
+            new(
+                "Tool",
+                11,
+                "x64",
+                TimeSpan.FromSeconds(3),
+                ExecutablePath: @"C:\Apps\Tool.exe",
+                PublisherIdentity: "CN=Tool Maker"),
+            new(
+                "VisibleApp",
+                12,
+                "x64",
+                TimeSpan.FromSeconds(1),
+                ExecutablePath: @"C:\Apps\VisibleApp.exe",
+                PublisherIdentity: "CN=Visible Maker")
+        ];
+        AppIdentityRule[] rules =
+        [
+            new(
+                "Hide AppleMusic everywhere",
+                PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+                Architecture: "ARM64EC",
+                Targets: SuppressionTarget.All),
+            new(
+                "Hide Tool from tray",
+                ExecutablePath: @"c:\apps\tool.exe",
+                PublisherIdentity: "CN=Tool Maker",
+                Targets: SuppressionTarget.Tray),
+            new(
+                "Mute Tool toast",
+                ExecutablePath: @"c:\apps\tool.exe",
+                Targets: SuppressionTarget.Toast)
+        ];
+
+        MonitoringSnapshot snapshot = MonitoringSnapshotBuilder.Build(
+            processes,
+            rules,
+            MonitoringSettings.Default);
+
+        CollectionAssert.AreEqual(
+            new[] { "Tool", "VisibleApp" },
+            snapshot.Processes.Select(process => process.Name).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "VisibleApp" },
+            snapshot.TrayProcesses.Select(process => process.Name).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "VisibleApp" },
+            snapshot.NotifiableProcesses.Select(process => process.Name).ToArray());
+        CollectionAssert.AreEqual(
+            new[] { "Tool", "VisibleApp" },
+            snapshot.HistoryProcesses.Select(process => process.Name).ToArray());
+    }
 }

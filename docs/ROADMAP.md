@@ -215,12 +215,14 @@ Current branch state:
 - `Ignore app` actions from Processes and History create app identity rules.
 - Rules view replaces the old Filters view.
 - Rules can be added with a chosen suppression target and removed.
+- Existing rules can change suppression target from the Rules view.
 - Architecture-only rules are rejected so one broad architecture value cannot hide many unrelated apps.
+- Automated Core tests cover app identity rules across Processes, History, tray, and Toast snapshot outputs.
 
 Remaining before v0.7.2 is done:
 
-- Add an edit path for existing rules, at minimum target changes and display/match review.
-- Verify rule effects across Processes, History, tray tooltip/menu, and Toast notification paths.
+- Add a richer edit path for existing rules if render review shows target editing is not enough.
+- Manually verify rule effects across the live Processes, History, tray tooltip/menu, and Toast notification paths.
 - Complete render review for Processes, History, Rules, Settings, tray menu, and Toast activation surfaces affected by rules.
 - Run full tests and `win-arm64` Release build after the final UI pass.
 

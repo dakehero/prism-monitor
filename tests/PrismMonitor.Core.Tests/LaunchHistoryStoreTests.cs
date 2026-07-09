@@ -227,6 +227,44 @@ public sealed class LaunchHistoryStoreTests
         Assert.IsFalse(FindSummaryByPath(summaries, @"C:\Other\Tool.exe").IsIgnored);
     }
 
+    [TestMethod]
+    public async Task GetSummaryAsync_AppliesPackageAndPublisherRulesToIgnoredState()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        await store.AppendAsync(new LaunchHistoryEvent(
+            "AppleMusic",
+            "ARM64EC",
+            100,
+            @"C:\Program Files\WindowsApps\AppleMusic.exe",
+            null,
+            now,
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            PublisherIdentity: "CN=Apple Inc."));
+        await store.AppendAsync(new LaunchHistoryEvent(
+            "OtherPlayer",
+            "x64",
+            101,
+            @"C:\Apps\OtherPlayer.exe",
+            null,
+            now.AddMinutes(1),
+            PublisherIdentity: "CN=Other Maker"));
+
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryWithRulesAsync(
+            now.AddMinutes(2),
+            [
+                new AppIdentityRule(
+                    "Ignore Apple package",
+                    PackageIdentity: "appleinc.applemusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+                    PublisherIdentity: "CN=Apple Inc.",
+                    Architecture: "ARM64EC",
+                    Targets: SuppressionTarget.History)
+            ]);
+
+        Assert.IsTrue(FindSummary(summaries, "AppleMusic").IsIgnored);
+        Assert.IsFalse(FindSummary(summaries, "OtherPlayer").IsIgnored);
+    }
+
     private LaunchHistoryStore CreateStore()
     {
         _temporaryDirectory ??= Path.Combine(Path.GetTempPath(), "PrismMonitorTests", Guid.NewGuid().ToString("N"));
