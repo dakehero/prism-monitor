@@ -568,13 +568,48 @@
                                                     Text="{x:Bind TargetsText, Mode=OneWay}"
                                                     TextAlignment="Left" />
                                             </StackPanel>
-                                            <Button
+                                            <StackPanel
                                                 Grid.Column="1"
-                                                HorizontalAlignment="Left"
+                                                HorizontalAlignment="Right"
                                                 VerticalAlignment="Center"
-                                                Click="RemoveRuleButton_Click"
-                                                Content="Remove"
-                                                Tag="{x:Bind Rule, Mode=OneWay}" />
+                                                Orientation="Horizontal"
+                                                Spacing="8">
+                                                <Button Content="Change target">
+                                                    <Button.Flyout>
+                                                        <MenuFlyout>
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="All"
+                                                                Text="All surfaces" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Processes"
+                                                                Text="Processes" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="History"
+                                                                Text="History" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Tray"
+                                                                Text="Tray" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Toast"
+                                                                Text="Toast" />
+                                                        </MenuFlyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                                <Button
+                                                    Click="RemoveRuleButton_Click"
+                                                    Content="Remove"
+                                                    Tag="{x:Bind Rule, Mode=OneWay}" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

@@ -118,6 +118,63 @@ public sealed class IgnoredProcessStoreTests
         Assert.IsEmpty(await store.GetIgnoredNamesAsync());
     }
 
+    [TestMethod]
+    public async Task UpdateRuleTargetsAsync_ReplacesExistingRuleTargets()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule rule = new(
+            "AppleMusic",
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            Targets: SuppressionTarget.Toast);
+        await store.AddRuleAsync(rule);
+
+        await store.UpdateRuleTargetsAsync(rule, SuppressionTarget.Processes);
+
+        AppIdentityRule savedRule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa", savedRule.PackageIdentity);
+        Assert.AreEqual(SuppressionTarget.Processes, savedRule.Targets);
+    }
+
+    [TestMethod]
+    public async Task UpdateRuleTargetsAsync_MovesNameRuleIntoLegacyListWhenTargetsBecomeAll()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule rule = AppIdentityRuleStore.CreateRuleForIdentity(
+            new AppIdentity("Chrome"),
+            SuppressionTarget.Toast);
+        await store.AddRuleAsync(rule);
+
+        await store.UpdateRuleTargetsAsync(rule, SuppressionTarget.All);
+
+        AppIdentityRule savedRule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual(SuppressionTarget.All, savedRule.Targets);
+        CollectionAssert.AreEqual(new[] { "Chrome" }, (await store.GetIgnoredNamesAsync()).ToArray());
+    }
+
+    [TestMethod]
+    public async Task UpdateRuleTargetsAsync_MergesWithExistingRuleForNewTargets()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule processesRule = new(
+            "AppleMusic",
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            Targets: SuppressionTarget.Processes);
+        AppIdentityRule toastRule = processesRule with
+        {
+            DisplayName = "Apple Music toast",
+            Targets = SuppressionTarget.Toast
+        };
+        await store.AddRuleAsync(processesRule);
+        await store.AddRuleAsync(toastRule);
+
+        await store.UpdateRuleTargetsAsync(toastRule, SuppressionTarget.Processes);
+
+        AppIdentityRule savedRule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("Apple Music toast", savedRule.DisplayName);
+        Assert.AreEqual("AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa", savedRule.PackageIdentity);
+        Assert.AreEqual(SuppressionTarget.Processes, savedRule.Targets);
+    }
+
     private IgnoredProcessStore CreateStore()
     {
         _temporaryDirectory ??= Path.Combine(Path.GetTempPath(), "PrismMonitorTests", Guid.NewGuid().ToString("N"));

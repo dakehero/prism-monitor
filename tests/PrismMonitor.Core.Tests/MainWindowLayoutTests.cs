@@ -116,6 +116,18 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind DisplayName, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind MatchSummary, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind TargetsText, Mode=OneWay}\"");
+        StringAssert.Contains(rulesPage, "Content=\"Change target\"");
+        StringAssert.Contains(rulesPage, "Click=\"UpdateRuleTargetMenuItem_Click\"");
+        StringAssert.Contains(rulesPage, "Text=\"All surfaces\"");
+        StringAssert.Contains(rulesPage, "Text=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Text=\"History\"");
+        StringAssert.Contains(rulesPage, "Text=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Text=\"Toast\"");
+        StringAssert.Contains(rulesPage, "Tag=\"All\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Tag=\"History\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Toast\"");
         StringAssert.Contains(rulesPage, "Click=\"RemoveRuleButton_Click\"");
         StringAssert.Contains(rulesPage, "<ColumnDefinition Width=\"*\" MinWidth=\"0\" />");
         StringAssert.Contains(rulesPage, "TextWrapping=\"WrapWholeWords\"");

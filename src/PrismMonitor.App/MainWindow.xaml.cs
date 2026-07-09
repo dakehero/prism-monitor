@@ -316,6 +316,19 @@ public sealed partial class MainWindow : Window
         await RefreshAsync();
     }
 
+    private async void UpdateRuleTargetMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem { DataContext: AppIdentityRule rule, Tag: string target })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.UpdateRuleTargetsAsync(rule, GetRuleTargetFromText(target));
+        await ReloadRulesAsync();
+        await RefreshHistoryAsync();
+        await RefreshAsync();
+    }
+
     private async void IgnoreHistoryAppButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: HistoryRow row })
@@ -755,7 +768,12 @@ public sealed partial class MainWindow : Window
 
     private SuppressionTarget GetRuleTargetFromControls()
     {
-        return GetSelectedComboBoxText(RuleTargetComboBox) switch
+        return GetRuleTargetFromText(GetSelectedComboBoxText(RuleTargetComboBox));
+    }
+
+    private static SuppressionTarget GetRuleTargetFromText(string? targetText)
+    {
+        return targetText switch
         {
             "Processes" => SuppressionTarget.Processes,
             "History" => SuppressionTarget.History,
