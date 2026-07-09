@@ -106,6 +106,13 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(rulesPage, "x:Name=\"RulesHeading\"");
         StringAssert.Contains(rulesPage, "Text=\"App rules\"");
         StringAssert.Contains(rulesPage, "x:Name=\"RuleListView\"");
+        StringAssert.Contains(rulesPage, "x:Name=\"RuleTargetComboBox\"");
+        StringAssert.Contains(rulesPage, "SelectedValuePath=\"Tag\"");
+        StringAssert.Contains(rulesPage, "Tag=\"All\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Tag=\"History\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Toast\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind DisplayName, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind MatchSummary, Mode=OneWay}\"");
         StringAssert.Contains(rulesPage, "Text=\"{x:Bind TargetsText, Mode=OneWay}\"");

@@ -215,7 +215,10 @@ public sealed partial class MainWindow : Window
 
     private async void AddRuleButton_Click(object sender, RoutedEventArgs e)
     {
-        await _ignoredProcessStore.AddAsync(RuleNameTextBox.Text);
+        AppIdentityRule rule = AppIdentityRuleStore.CreateRuleForIdentity(
+            new AppIdentity(RuleNameTextBox.Text),
+            GetRuleTargetFromControls());
+        await _ignoredProcessStore.AddRuleAsync(rule);
         RuleNameTextBox.Text = string.Empty;
         await ReloadRulesAsync();
         await RefreshAsync();
@@ -748,6 +751,18 @@ public sealed partial class MainWindow : Window
             row.PackageIdentity,
             row.PublisherIdentity,
             row.Architecture);
+    }
+
+    private SuppressionTarget GetRuleTargetFromControls()
+    {
+        return GetSelectedComboBoxText(RuleTargetComboBox) switch
+        {
+            "Processes" => SuppressionTarget.Processes,
+            "History" => SuppressionTarget.History,
+            "Tray" => SuppressionTarget.Tray,
+            "Toast" => SuppressionTarget.Toast,
+            _ => SuppressionTarget.All
+        };
     }
 
     private LaunchHistoryQuery GetHistoryQueryFromControls()

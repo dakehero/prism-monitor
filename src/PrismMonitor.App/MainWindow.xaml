@@ -504,10 +504,23 @@
                         <Grid Grid.Row="1" ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="280" />
+                                <ColumnDefinition Width="156" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="RuleNameTextBox" PlaceholderText="Process name rule" />
-                            <Button Grid.Column="1" Click="AddRuleButton_Click" Content="Add rule" />
+                            <ComboBox
+                                x:Name="RuleTargetComboBox"
+                                Grid.Column="1"
+                                SelectedIndex="0"
+                                SelectedValuePath="Tag"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All surfaces" Tag="All" />
+                                <ComboBoxItem Content="Processes" Tag="Processes" />
+                                <ComboBoxItem Content="History" Tag="History" />
+                                <ComboBoxItem Content="Tray" Tag="Tray" />
+                                <ComboBoxItem Content="Toast" Tag="Toast" />
+                            </ComboBox>
+                            <Button Grid.Column="2" Click="AddRuleButton_Click" Content="Add rule" />
                         </Grid>
 
                         <ListView

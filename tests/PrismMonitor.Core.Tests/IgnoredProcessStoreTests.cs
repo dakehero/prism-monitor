@@ -75,6 +75,22 @@ public sealed class IgnoredProcessStoreTests
     }
 
     [TestMethod]
+    public async Task AddRuleAsync_PersistsTargetSpecificNameRuleWithoutLegacyIgnoredName()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule rule = AppIdentityRuleStore.CreateRuleForIdentity(
+            new AppIdentity("Chrome"),
+            SuppressionTarget.Toast);
+
+        await store.AddRuleAsync(rule);
+
+        AppIdentityRule savedRule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("Chrome", savedRule.ProcessName);
+        Assert.AreEqual(SuppressionTarget.Toast, savedRule.Targets);
+        Assert.IsEmpty(await store.GetIgnoredNamesAsync());
+    }
+
+    [TestMethod]
     public async Task RemoveRuleAsync_RemovesNonNameRule()
     {
         IgnoredProcessStore store = CreateStore();
