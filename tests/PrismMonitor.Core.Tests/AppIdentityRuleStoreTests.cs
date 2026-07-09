@@ -133,6 +133,63 @@ public sealed class AppIdentityRuleStoreTests
         Assert.AreEqual(SuppressionTarget.Toast, rules[0].Targets);
     }
 
+    [TestMethod]
+    public async Task AddOrUpdateRuleAsync_UsesStrongestAvailableIdentity()
+    {
+        AppIdentityRuleStore store = CreateStore();
+        AppIdentity identity = new(
+            "AppleMusic",
+            ExecutablePath: @"C:\Program Files\WindowsApps\AppleMusic.exe",
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            PublisherIdentity: "CN=Apple Inc.",
+            Architecture: "ARM64EC");
+
+        await store.AddOrUpdateRuleAsync(
+            AppIdentityRuleStore.CreateRuleForIdentity(identity, SuppressionTarget.Toast));
+
+        AppIdentityRule rule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("AppleMusic", rule.DisplayName);
+        Assert.IsNull(rule.ProcessName);
+        Assert.IsNull(rule.ExecutablePath);
+        Assert.AreEqual("AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa", rule.PackageIdentity);
+        Assert.IsNull(rule.PublisherIdentity);
+        Assert.AreEqual("ARM64EC", rule.Architecture);
+        Assert.AreEqual(SuppressionTarget.Toast, rule.Targets);
+    }
+
+    [TestMethod]
+    public async Task AddOrUpdateRuleAsync_ReplacesRuleWithSameIdentityAndTargets()
+    {
+        AppIdentityRuleStore store = CreateStore();
+        await store.AddOrUpdateRuleAsync(new AppIdentityRule(
+            "Chrome",
+            ExecutablePath: @"C:\Apps\Chrome.exe",
+            Targets: SuppressionTarget.Toast));
+
+        await store.AddOrUpdateRuleAsync(new AppIdentityRule(
+            "Google Chrome",
+            ExecutablePath: @"c:\apps\chrome.exe",
+            Targets: SuppressionTarget.Toast));
+
+        AppIdentityRule rule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("Google Chrome", rule.DisplayName);
+    }
+
+    [TestMethod]
+    public async Task RemoveRuleAsync_RemovesMatchingRuleOnly()
+    {
+        AppIdentityRuleStore store = CreateStore();
+        AppIdentityRule allRule = new("Chrome", ProcessName: "Chrome", Targets: SuppressionTarget.All);
+        AppIdentityRule toastRule = new("Chrome toast", ProcessName: "Chrome", Targets: SuppressionTarget.Toast);
+        await store.AddOrUpdateRuleAsync(allRule);
+        await store.AddOrUpdateRuleAsync(toastRule);
+
+        await store.RemoveRuleAsync(toastRule);
+
+        AppIdentityRule rule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual(SuppressionTarget.All, rule.Targets);
+    }
+
     private string TemporaryDirectory
     {
         get
