@@ -1,4 +1,5 @@
 using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Rules;
 
 namespace PrismMonitor.Core.Tests;
 
@@ -53,6 +54,39 @@ public sealed class IgnoredProcessStoreTests
 
         IReadOnlyList<string> names = await store.GetIgnoredNamesAsync();
         CollectionAssert.AreEqual(new[] { "legacy" }, names.ToArray());
+    }
+
+    [TestMethod]
+    public async Task AddRuleAsync_PersistsNonNameRuleWithoutLegacyIgnoredName()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule rule = new(
+            "AppleMusic",
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            Architecture: "ARM64EC",
+            Targets: SuppressionTarget.Toast);
+
+        await store.AddRuleAsync(rule);
+
+        AppIdentityRule savedRule = (await store.GetRulesAsync()).Single();
+        Assert.AreEqual("AppleMusic", savedRule.DisplayName);
+        Assert.AreEqual("AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa", savedRule.PackageIdentity);
+        Assert.IsEmpty(await store.GetIgnoredNamesAsync());
+    }
+
+    [TestMethod]
+    public async Task RemoveRuleAsync_RemovesNonNameRule()
+    {
+        IgnoredProcessStore store = CreateStore();
+        AppIdentityRule rule = new(
+            "AppleMusic",
+            PackageIdentity: "AppleInc.AppleMusic_1.0.0.0_arm64__nzyj5cx40ttqa",
+            Targets: SuppressionTarget.Toast);
+        await store.AddRuleAsync(rule);
+
+        await store.RemoveRuleAsync(rule);
+
+        Assert.IsEmpty(await store.GetRulesAsync());
     }
 
     private IgnoredProcessStore CreateStore()

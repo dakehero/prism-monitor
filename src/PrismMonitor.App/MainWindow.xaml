@@ -256,7 +256,7 @@
                                                         <Button
                                                             x:Name="IgnoreProcessButton"
                                                             Click="IgnoreProcessMenuItem_Click"
-                                                            Content="Ignore"
+                                                            Content="Ignore app"
                                                             Tag="{x:Bind}"
                                                             ToolTipService.ToolTip="Ignore process" />
                                                     </StackPanel>
@@ -468,6 +468,13 @@
                                                         TextWrapping="Wrap"
                                                         ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
                                                 </Grid>
+                                                <Button
+                                                    x:Name="IgnoreHistoryAppButton"
+                                                    HorizontalAlignment="Left"
+                                                    Click="IgnoreHistoryAppButton_Click"
+                                                    Content="Ignore app"
+                                                    Tag="{x:Bind}"
+                                                    ToolTipService.ToolTip="Ignore app" />
                                         </StackPanel>
                                     </Expander>
                                 </Border>

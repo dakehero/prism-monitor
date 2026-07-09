@@ -28,6 +28,36 @@ public sealed class IgnoredProcessStore(string filePath)
         return _ruleStore.GetRulesAsync(cancellationToken);
     }
 
+    public async Task AddRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _ruleStore.AddOrUpdateRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task RemoveRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _ruleStore.RemoveRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task AddAsync(string processName, CancellationToken cancellationToken = default)
     {
         string normalizedName = IgnoredProcessFilter.NormalizeName(processName);

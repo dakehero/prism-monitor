@@ -208,7 +208,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        await _ignoredProcessStore.AddAsync(row.Name);
+        await _ignoredProcessStore.AddRuleAsync(AppIdentityRuleStore.CreateRuleForIdentity(ToAppIdentity(row), SuppressionTarget.All));
         await ReloadRulesAsync();
         await RefreshAsync();
     }
@@ -308,12 +308,21 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(rule.ProcessName))
+        await _ignoredProcessStore.RemoveRuleAsync(rule);
+        await ReloadRulesAsync();
+        await RefreshAsync();
+    }
+
+    private async void IgnoreHistoryAppButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: HistoryRow row })
         {
-            await _ignoredProcessStore.RemoveAsync(rule.ProcessName);
+            return;
         }
 
+        await _ignoredProcessStore.AddRuleAsync(AppIdentityRuleStore.CreateRuleForIdentity(ToAppIdentity(row), SuppressionTarget.All));
         await ReloadRulesAsync();
+        await RefreshHistoryAsync();
         await RefreshAsync();
     }
 
@@ -504,16 +513,21 @@ public sealed partial class MainWindow : Window
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
                     process.ExecutablePath ?? string.Empty,
+                    process.PackageIdentity ?? string.Empty,
+                    process.PublisherIdentity ?? string.Empty,
                     await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath));
             }
             else
             {
+                string executablePath = process.ExecutablePath ?? string.Empty;
                 Rows.Add(new ProcessRow(
                     process.Name,
                     process.ProcessId,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
-                    process.ExecutablePath ?? string.Empty,
+                    executablePath,
+                    process.PackageIdentity ?? string.Empty,
+                    process.PublisherIdentity ?? string.Empty,
                     await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath)));
             }
         }
@@ -710,6 +724,26 @@ public sealed partial class MainWindow : Window
             packageIdentity,
             '\u001f',
             publisherIdentity);
+    }
+
+    private static AppIdentity ToAppIdentity(ProcessRow row)
+    {
+        return new AppIdentity(
+            row.Name,
+            row.ExecutablePath,
+            row.PackageIdentity,
+            row.PublisherIdentity,
+            row.Architecture);
+    }
+
+    private static AppIdentity ToAppIdentity(HistoryRow row)
+    {
+        return new AppIdentity(
+            row.ProcessName,
+            row.ExecutablePath,
+            row.PackageIdentity,
+            row.PublisherIdentity,
+            row.Architecture);
     }
 
     private LaunchHistoryQuery GetHistoryQueryFromControls()

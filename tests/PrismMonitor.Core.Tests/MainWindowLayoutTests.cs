@@ -203,6 +203,10 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdGlyph\"");
         StringAssert.Contains(processList, "x:Name=\"EndProcessButton\"");
         StringAssert.Contains(processList, "x:Name=\"IgnoreProcessButton\"");
+        StringAssert.Contains(processList, "Content=\"Ignore app\"");
+        StringAssert.Contains(historyList, "x:Name=\"IgnoreHistoryAppButton\"");
+        StringAssert.Contains(historyList, "Content=\"Ignore app\"");
+        StringAssert.Contains(historyList, "Click=\"IgnoreHistoryAppButton_Click\"");
     }
 
     [TestMethod]
