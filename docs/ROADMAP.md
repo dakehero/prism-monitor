@@ -108,76 +108,141 @@ Acceptance criteria:
 - Existing Toast quick actions for ending or ignoring a process keep their current behavior.
 - Toast activation handling remains safe when the app is already running, hidden to tray, or cold-started from notification activation.
 
-## v0.7 Low-Power App Identity Pipeline
+## v0.7 Low-Power App Identity Roadmap
 
 Status: planned.
 
-Make Prism Monitor cheaper to run on battery and more precise about what an app is. v0.7 combines the old low-privilege process-pipeline plan with the newer app-identity rules plan: first stop doing repeated full handle scans, then build richer rules on top of cached process identity.
+v0.7 is the release that makes Prism Monitor feel cheap enough to leave running all day. The theme is "observe lightly, enrich deliberately": avoid repeated full process scans in the tray path, cache expensive identity details, and make all filtering decisions flow through one app-identity rule engine.
+
+### Goals
+
+- Reduce hidden-to-tray and battery-mode work without losing newly started compatibility-mode process detection.
+- Separate lightweight process discovery from expensive enrichment such as executable path, icon, architecture heuristics, package identity, and signing identity.
+- Replace name-only ignores with app identity rules that work consistently across Processes, History, tray tooltip/menu, and Toast notifications.
+- Keep the UI modern and low-friction: simple default actions, richer details only when the user expands or edits.
+
+### Non-goals
+
+- Do not add CPU sampling loops or ETW-based CPU profilers.
+- Do not require administrator elevation for the normal Store-facing app.
+- Do not build a full task-manager replacement.
+- Do not redesign packaging, signing, or release automation as part of 0.7.
 
 ### v0.7.0 Low-Power Process Pipeline
 
-Split process discovery into a lightweight snapshot layer and a best-effort enrichment layer. Tray, Toast, and history flows should not treat `OpenProcess` as the first step of every refresh.
+Build a shared monitoring pipeline that all runtime surfaces use instead of each surface enumerating processes independently.
+
+Deliverables:
+
+- Introduce a lightweight snapshot model containing PID, process name, cumulative CPU time when available, and detection time.
+- Add a single background coordinator for tray tooltip, tray menu, Toast detection, and history recording.
+- Move main-window refreshes onto the same snapshot feed, with explicit requests for richer details when the window is visible.
+- Make battery behavior adaptive:
+  - Hidden to tray on battery: use event-like or interaction-triggered refresh where available, with a conservative fallback interval.
+  - Main window visible on battery: refresh at a lower cadence and never block UI rendering on enrichment.
+  - Plugged in: keep responsive monitoring, but still avoid duplicate scans.
 
 Acceptance criteria:
 
-- Background monitoring does not open every process handle once per second.
-- The first pass collects PID, process name, and cumulative CPU time through low-privilege system data.
-- Background tray and Toast flows use lightweight snapshots plus cached enrichment.
-- Main-window refreshes may request richer details, but they reuse cached metadata whenever possible.
-- Battery-mode behavior is interaction-driven when hidden to tray, and visibly lower-frequency when the main window is open.
-- The app continues to avoid CPU sampling loops.
+- Hidden-to-tray monitoring no longer opens every process handle once per second.
+- Tray, Toast, history, and main window do not each perform their own full process enumeration loop.
+- Starting a new x86, x64, or ARM64EC compatibility-mode app still appears in the next expected monitoring cycle.
+- The app continues to use Windows/system process data and avoids CPU sampling loops.
+- Tests cover coordinator fan-out, battery cadence selection, and no-duplicate-refresh behavior.
+- Manual power smoke test records CPU delta, wake behavior, working set, and refresh cadence on battery while hidden to tray.
 
 ### v0.7.1 Enrichment Cache
 
-Cache expensive or permission-sensitive metadata so repeated refreshes do not re-read the same path, icon, architecture, or ARM64EC information.
+Add a cache for expensive or permission-sensitive metadata. The snapshot path should work with partial identity, and enrichment should add richer details opportunistically.
+
+Deliverables:
+
+- Add a PID-scoped process identity cache keyed by PID plus creation identity when available.
+- Cache architecture, executable path, icon identity/cache key, package identity, publisher/signing identity, ARM64EC / ARM64X classification, and last enrichment result.
+- Treat inaccessible metadata as a cacheable limited-detail state with a retry policy, not as a crash or permanent disappearance.
+- Keep icon extraction off the hot refresh path and reuse existing icons whenever the executable identity has not changed.
 
 Acceptance criteria:
 
-- PID-scoped metadata includes architecture, executable path, app icon, package identity when available, publisher/signing identity when available, and ARM64EC / ARM64X classification.
-- The cache is invalidated when a PID exits or its creation identity changes.
-- Processes with unreadable paths or metadata degrade to process-name identity without crashing.
-- Architecture detection prefers runtime process APIs and uses PE metadata only as a targeted enrichment step.
-- Inaccessible or protected processes remain visible with limited detail instead of disappearing from every surface.
+- Repeated refreshes do not re-read path, icon, PE metadata, or signing/package identity for unchanged processes.
+- PID reuse invalidates stale metadata.
+- Protected or unreadable processes remain visible with limited identity.
+- ARM64EC / ARM64X classification is preserved and tested.
+- Tests cover cache hits, cache invalidation, inaccessible metadata fallback, and targeted ARM64EC enrichment.
 
 ### v0.7.2 App Identity Rules
 
-Replace the simple ignored-name list with rules that describe app identity and what Prism Monitor should suppress.
+Replace the current ignored-name list with a versioned rule model. Rules describe what app identity they match and which Prism Monitor surfaces they suppress.
+
+Deliverables:
+
+- Add an `AppIdentityRule` model with match fields for process name, executable path, package identity, publisher/signing identity, and optional architecture.
+- Add suppression targets for Processes, History, tray tooltip/menu, Toast notifications, and All.
+- Add a single rule evaluator used by every surface.
+- Migrate existing ignored process names into all-surface process-name rules on first run.
+- Keep the legacy ignore data readable for one release cycle so users do not lose choices during upgrade/downgrade testing.
 
 Acceptance criteria:
 
-- Rules can match by process name, executable path, package identity, publisher/signing identity, or a combination of available fields.
-- Rule matching is case-insensitive for Windows process names and paths.
-- Each rule can suppress main-window visibility, tray tooltip/menu visibility, Toast notifications, history surfacing, or all compatibility-mode surfacing.
-- The main window, tray tooltip, tray menu, Toast notifications, and history views all use the same rule evaluator.
-- Existing name-only ignored apps migrate into equivalent v0.7 rules on first run.
-- Rule evaluation remains safe when metadata is partial, missing, or unreadable.
+- Matching is case-insensitive for Windows process names and paths.
+- Rules behave predictably when only partial metadata is available.
+- Processes, History, tray tooltip/menu, and Toast notifications all use the same evaluator.
+- Existing ignored apps keep their behavior after upgrade.
+- Tests cover rule matching, target-specific suppression, migration, legacy-read fallback, and partial-metadata fallback.
 
 ### v0.7.3 Rules UI and Workflow
 
-Turn the current Filters page into a rules management surface without making common actions harder.
+Turn Filters into a rule-management experience while keeping the common "ignore this app" action one-click simple.
+
+Deliverables:
+
+- Rename the Filters view to Rules if the UI copy reads better after implementation review.
+- Let users create a rule from Processes, History, or the Rules view using the best available identity without retyping.
+- Keep the default action simple: "Ignore app" creates an all-surface rule using the strongest available identity.
+- Add an advanced edit surface for match fields and suppression targets.
+- Preserve the current no-flicker list behavior and use real WinUI render review before handoff.
 
 Acceptance criteria:
 
-- Users can create a rule from the Processes page, History page, or Filters page without retyping known process details.
-- The default action stays simple: ignoring an app creates an all-surface rule using the best available identity.
-- Advanced rule editing exposes match fields and suppression targets without overwhelming the default list view.
-- The rule list updates without flicker and remains stable while background refreshes continue.
-- Destructive actions such as deleting a rule show clear feedback.
+- Rules list updates in place and does not visibly flicker.
+- Process and History rows expose rule actions without cluttering the compact card layout.
+- Advanced rule editing is discoverable but not the default path.
+- Deleting or changing a rule gives clear feedback.
+- UI render review covers Processes, History, Rules, Settings, tray menu, and Toast activation flows affected by rules.
 
-### v0.7 Release Gates
+### Cross-cutting Design
 
-v0.7 is not complete unless it proves the new pipeline is cheaper and the new rules are consistent.
+The 0.7 data flow should converge on this shape:
 
-Acceptance criteria:
+```text
+Windows process data
+  -> lightweight snapshots
+  -> enrichment cache
+  -> app identity rules
+  -> Processes / History / Tray / Toast
+```
 
-- Add tests for snapshot/enrichment separation, cache invalidation, rule migration, rule matching, and partial-metadata fallback.
-- Add a manual power smoke test comparing hidden-to-tray battery behavior before and after the pipeline change.
-- Add a main-window render review for Processes, History, Filters/Rules, and Settings after the rules UI lands.
-- No local MSIX artifacts or generated package output are committed.
-- Store-facing behavior still works without administrator elevation.
+The lightweight snapshot layer should not know about UI. The enrichment cache should not make suppression decisions. The rule evaluator should be pure enough to test in `PrismMonitor.Core`. WinUI, tray, Toast, and icon extraction remain in `PrismMonitor.App`.
+
+### Release Gates
+
+v0.7 is not complete until both power behavior and rule consistency are proven.
+
+- Core tests pass for snapshot coordination, enrichment cache, rule migration, rule matching, and partial metadata.
+- App build passes for `win-arm64` Release.
+- Manual battery smoke test compares v0.6.1 and v0.7 hidden-to-tray behavior using the same machine state.
+- Manual render review is done for every visible UI change, using XAML Live Preview when available or a launched local build screenshot.
+- No generated MSIX artifacts, package output, local logs, or certificates are committed.
+
+### 0.8 Candidates
+
+These ideas are intentionally deferred unless 0.7 lands early:
+
+- More advanced notification policy presets.
+- A dedicated diagnostics page for refresh cadence, cache state, and power mode.
+- Store-ready packaging/signing improvements.
+- Localization resources after the English baseline stabilizes.
 
 ## Future Ideas
 
-- Store-ready packaging with a Microsoft Partner Center certificate.
-- Localized UI resources after the English baseline is stable.
 - Command-line render-review harness for WinUI UI changes.
