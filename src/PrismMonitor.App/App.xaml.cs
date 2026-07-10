@@ -115,7 +115,7 @@ public partial class App : Application
         window.Activate();
         if (_monitoringHost?.LatestSnapshot is MonitoringSnapshot snapshot)
         {
-            _ = window.ApplyMonitoringSnapshotAsync(snapshot);
+            TryUpdateMainWindow(snapshot);
         }
     }
 
@@ -365,13 +365,20 @@ public partial class App : Application
         }
     }
 
-    private void TryUpdateMainWindow(MonitoringSnapshot snapshot)
+    private async void TryUpdateMainWindow(MonitoringSnapshot snapshot)
     {
         if (!_isMainWindowVisible || _window is null)
         {
             return;
         }
 
-        _ = _window.ApplyMonitoringSnapshotAsync(snapshot);
+        try
+        {
+            await _window.ApplyMonitoringSnapshotAsync(snapshot);
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Write("App.UpdateMainWindow", exception);
+        }
     }
 }

@@ -108,6 +108,20 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(source, "ConfigurationChanged");
     }
 
+    [TestMethod]
+    public void AppSnapshotFanoutIsolatesEverySurfaceFailure()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "App.xaml.cs")));
+
+        StringAssert.Contains(source, "App.RecordHistory");
+        StringAssert.Contains(source, "App.UpdateTray");
+        StringAssert.Contains(source, "App.Notify");
+        StringAssert.Contains(source, "App.UpdateMainWindow");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
