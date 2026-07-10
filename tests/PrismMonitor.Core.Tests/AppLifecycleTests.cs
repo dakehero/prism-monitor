@@ -52,6 +52,20 @@ public sealed class AppLifecycleTests
     }
 
     [TestMethod]
+    public void WindowsEnricherDistinguishesAbsentMetadataFromRetryableReadFailures()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "Processes",
+            "Win32ProcessEnricher.cs")));
+
+        StringAssert.Contains(source, "AppModelErrorNoPackage");
+        StringAssert.Contains(source, "MetadataReadResult");
+        StringAssert.Contains(source, "HasLimitedDetails: errors.Count > 0");
+    }
+
+    [TestMethod]
     public void RepositoryHasOneProcessCapturePathAndNoLegacyPullService()
     {
         string root = Path.GetDirectoryName(FindRepoFile("PrismMonitor.slnx"))!;

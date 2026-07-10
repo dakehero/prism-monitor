@@ -12,6 +12,7 @@ namespace PrismMonitor.App.Processes;
 
 internal sealed class Win32ProcessEnricher : IProcessEnricher
 {
+    private const int AppModelErrorNoPackage = 15_700;
     private const int MaxPath = 32_767;
 
     public Task<ProcessEnrichmentInfo> EnrichAsync(
@@ -74,26 +75,41 @@ internal sealed class Win32ProcessEnricher : IProcessEnricher
                 };
             }
 
-            string? packageIdentity = request.IdentityFields.HasFlag(ProcessIdentityFields.PackageIdentity)
+            MetadataReadResult packageIdentity = request.IdentityFields.HasFlag(ProcessIdentityFields.PackageIdentity)
                 ? TryReadPackageFullName(process)
-                : null;
-            string? publisherIdentity = request.IdentityFields.HasFlag(ProcessIdentityFields.PublisherIdentity)
+                : default;
+            MetadataReadResult publisherIdentity = request.IdentityFields.HasFlag(ProcessIdentityFields.PublisherIdentity)
                 ? TryReadPublisherIdentity(executablePath)
-                : null;
+                : default;
             bool missingRequestedPath = request.IdentityFields.HasFlag(ProcessIdentityFields.ExecutablePath)
                 && string.IsNullOrWhiteSpace(executablePath);
+            List<string> errors = [];
+            if (missingRequestedPath)
+            {
+                errors.Add("Executable path is unavailable.");
+            }
+
+            if (packageIdentity.Error is not null)
+            {
+                errors.Add(packageIdentity.Error);
+            }
+
+            if (publisherIdentity.Error is not null)
+            {
+                errors.Add(publisherIdentity.Error);
+            }
 
             return new ProcessEnrichmentInfo(
                 ProcessCompatibilityState.Compatible,
                 architecture.DisplayName,
                 executablePath,
-                packageIdentity,
-                publisherIdentity,
+                packageIdentity.Value,
+                publisherIdentity.Value,
                 IconCacheKey: executablePath,
                 request.Level,
                 request.IdentityFields,
-                HasLimitedDetails: missingRequestedPath,
-                LastError: missingRequestedPath ? "Executable path is unavailable." : null);
+                HasLimitedDetails: errors.Count > 0,
+                LastError: errors.Count > 0 ? string.Join(" ", errors) : null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -187,27 +203,42 @@ internal sealed class Win32ProcessEnricher : IProcessEnricher
         }
     }
 
-    private static string? TryReadPackageFullName(Process process)
+    private static MetadataReadResult TryReadPackageFullName(Process process)
     {
         uint length = 0;
         int result = ProcessInterop.GetPackageFullName(process.SafeHandle, ref length, []);
-        if (result != ProcessInterop.ErrorInsufficientBuffer || length <= 1)
+        if (result == AppModelErrorNoPackage)
         {
-            return null;
+            return default;
+        }
+
+        if (result != ProcessInterop.ErrorInsufficientBuffer)
+        {
+            return MetadataReadResult.Failed(new Win32Exception(result).Message);
+        }
+
+        if (length <= 1)
+        {
+            return MetadataReadResult.Failed("Package identity length is invalid.");
         }
 
         char[] buffer = new char[length];
         result = ProcessInterop.GetPackageFullName(process.SafeHandle, ref length, buffer);
-        return result == 0 && length > 1
-            ? new string(buffer, 0, checked((int)length - 1))
-            : null;
+        if (result == 0 && length > 1)
+        {
+            return new MetadataReadResult(
+                new string(buffer, 0, checked((int)length - 1)),
+                Error: null);
+        }
+
+        return MetadataReadResult.Failed(new Win32Exception(result).Message);
     }
 
-    private static string? TryReadPublisherIdentity(string? executablePath)
+    private static MetadataReadResult TryReadPublisherIdentity(string? executablePath)
     {
         if (string.IsNullOrWhiteSpace(executablePath))
         {
-            return null;
+            return default;
         }
 
         try
@@ -215,24 +246,31 @@ internal sealed class Win32ProcessEnricher : IProcessEnricher
 #pragma warning disable SYSLIB0057
             using X509Certificate certificate = X509Certificate.CreateFromSignedFile(executablePath);
 #pragma warning restore SYSLIB0057
-            return string.IsNullOrWhiteSpace(certificate.Subject) ? null : certificate.Subject;
+            return string.IsNullOrWhiteSpace(certificate.Subject)
+                ? default
+                : new MetadataReadResult(certificate.Subject, Error: null);
         }
         catch (CryptographicException)
         {
-            return null;
+            return default;
         }
-        catch (IOException)
+        catch (IOException exception)
         {
-            return null;
+            return MetadataReadResult.Failed(exception.Message);
         }
-        catch (UnauthorizedAccessException)
+        catch (UnauthorizedAccessException exception)
         {
-            return null;
+            return MetadataReadResult.Failed(exception.Message);
         }
-        catch (ArgumentException)
+        catch (ArgumentException exception)
         {
-            return null;
+            return MetadataReadResult.Failed(exception.Message);
         }
+    }
+
+    private readonly record struct MetadataReadResult(string? Value, string? Error)
+    {
+        public static MetadataReadResult Failed(string error) => new(Value: null, Error: error);
     }
 
     private sealed record PeImageArchitecture(ushort Machine, bool HasArm64XMetadata);
