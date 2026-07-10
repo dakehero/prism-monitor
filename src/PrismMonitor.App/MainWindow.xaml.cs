@@ -8,6 +8,7 @@ using PrismMonitor.Core.Monitoring;
 using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
+using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Processes;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
@@ -16,18 +17,15 @@ namespace PrismMonitor.App;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly CompatibilityProcessService _processService;
     private readonly IgnoredProcessStore _ignoredProcessStore;
     private readonly MonitoringSettingsStore _settingsStore;
     private readonly LaunchHistoryStore _launchHistoryStore;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
-    private readonly DispatcherTimer _refreshTimer = new();
+    private readonly LatestAsyncWorkGate<IReadOnlyList<CompatibilityProcessInfo>> _processSnapshotGate = new();
     // AppWindow uses window pixels; on the current 200% display scale this is about 818 x 488 XAML effective pixels.
     private readonly SizeInt32 _windowSize = new(1636, 975);
-    private readonly HashSet<string> _cachedIgnoredNames = new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<LaunchHistorySummary> _cachedHistorySummaries = [];
-    private bool _isRefreshing;
     private bool _isRefreshingHistory;
     private bool _refreshHistoryAgain;
     private bool _allowClose;
@@ -45,13 +43,15 @@ public sealed partial class MainWindow : Window
 
     public event EventHandler? HiddenToTray;
 
+    public event EventHandler? RefreshRequested;
+
+    public event EventHandler? ConfigurationChanged;
+
     public MainWindow(
-        CompatibilityProcessService processService,
         IgnoredProcessStore ignoredProcessStore,
         MonitoringSettingsStore settingsStore,
         LaunchHistoryStore launchHistoryStore)
     {
-        _processService = processService;
         _ignoredProcessStore = ignoredProcessStore;
         _settingsStore = settingsStore;
         _launchHistoryStore = launchHistoryStore;
@@ -65,10 +65,7 @@ public sealed partial class MainWindow : Window
         UpdateProcessStatusText();
         UpdateHistoryStatusText();
 
-        _refreshTimer.Interval = TimeSpan.FromSeconds(3);
-        _refreshTimer.Tick += RefreshTimer_Tick;
         AppWindow.Closing += AppWindow_Closing;
-        Closed += (_, _) => _refreshTimer.Stop();
     }
 
     public void ShowMainWindow()
@@ -80,15 +77,6 @@ public sealed partial class MainWindow : Window
         }
 
         AppWindow.Show();
-        _refreshTimer.Start();
-    }
-
-    public void SetRefreshInterval(TimeSpan interval)
-    {
-        if (_refreshTimer.Interval != interval)
-        {
-            _refreshTimer.Interval = interval;
-        }
     }
 
     public void CloseForExit()
@@ -97,27 +85,9 @@ public sealed partial class MainWindow : Window
         Close();
     }
 
-    public async Task RefreshAsync()
+    public Task ApplyMonitoringSnapshotAsync(MonitoringSnapshot snapshot)
     {
-        if (_isRefreshing)
-        {
-            return;
-        }
-
-        _isRefreshing = true;
-        try
-        {
-            await RefreshIgnoredCacheAsync();
-            IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-            IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
-            MonitoringSettings settings = await _settingsStore.GetAsync();
-            MonitoringSnapshot snapshot = MonitoringSnapshotBuilder.Build(processes, rules, settings);
-            await ApplyProcessSnapshotAsync(snapshot.Processes);
-        }
-        finally
-        {
-            _isRefreshing = false;
-        }
+        return ApplyProcessSnapshotSerializedAsync(snapshot.Processes);
     }
 
     public async Task RefreshHistoryAsync()
@@ -134,7 +104,6 @@ public sealed partial class MainWindow : Window
             do
             {
                 _refreshHistoryAgain = false;
-                await RefreshIgnoredCacheAsync();
                 IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
                 _cachedHistorySummaries = await _launchHistoryStore.GetSummaryWithRulesAsync(
                     DateTimeOffset.UtcNow,
@@ -158,11 +127,7 @@ public sealed partial class MainWindow : Window
 
         if (processSnapshot is not null)
         {
-            await ApplyProcessSnapshotAsync(processSnapshot);
-        }
-        else
-        {
-            await RefreshAsync();
+            await ApplyProcessSnapshotSerializedAsync(processSnapshot);
         }
 
         ProcessRow? row = Rows.FirstOrDefault(process => process.ProcessId == processId);
@@ -183,12 +148,12 @@ public sealed partial class MainWindow : Window
         await RefreshHistoryAsync();
     }
 
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
+    private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        await RefreshAsync();
+        RefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private async void TerminateMenuItem_Click(object sender, RoutedEventArgs e)
+    private void TerminateMenuItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: ProcessRow row })
         {
@@ -201,7 +166,7 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        await RefreshAsync();
+        RefreshRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private async void IgnoreProcessMenuItem_Click(object sender, RoutedEventArgs e)
@@ -213,7 +178,7 @@ public sealed partial class MainWindow : Window
 
         await _ignoredProcessStore.AddAsync(row.Name);
         await ReloadIgnoredNamesAsync();
-        await RefreshAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async void AddIgnoredButton_Click(object sender, RoutedEventArgs e)
@@ -221,7 +186,7 @@ public sealed partial class MainWindow : Window
         await _ignoredProcessStore.AddAsync(IgnoreNameTextBox.Text);
         IgnoreNameTextBox.Text = string.Empty;
         await ReloadIgnoredNamesAsync();
-        await RefreshAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async void HistoryFilter_Changed(object sender, RoutedEventArgs e)
@@ -313,7 +278,7 @@ public sealed partial class MainWindow : Window
 
         await _ignoredProcessStore.RemoveAsync(ignoredName);
         await ReloadIgnoredNamesAsync();
-        await RefreshAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async void RootNavigationView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -368,37 +333,16 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void RefreshTimer_Tick(object? sender, object e)
-    {
-        await RefreshAsync();
-    }
-
     private async Task ReloadIgnoredNamesAsync()
     {
         IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
         await ApplyIgnoredNamesAsync(ignoredNames);
     }
 
-    private async Task RefreshIgnoredCacheAsync()
-    {
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-        ApplyIgnoredCache(ignoredNames);
-    }
-
     private Task ApplyIgnoredNamesAsync(IReadOnlyList<string> ignoredNames)
     {
-        ApplyIgnoredCache(ignoredNames);
         ApplyFilterRows(ignoredNames);
         return Task.CompletedTask;
-    }
-
-    private void ApplyIgnoredCache(IReadOnlyList<string> ignoredNames)
-    {
-        _cachedIgnoredNames.Clear();
-        foreach (string ignoredName in ignoredNames)
-        {
-            _cachedIgnoredNames.Add(ignoredName);
-        }
     }
 
     private void ApplyFilterRows(IReadOnlyList<string> ignoredNames)
@@ -475,7 +419,7 @@ public sealed partial class MainWindow : Window
             : NotificationLevel.X86X64AndArm64Ec;
 
         await _settingsStore.SaveAsync(new MonitoringSettings(IncludeArm64EcToggle.IsOn, level));
-        await RefreshAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -486,7 +430,6 @@ public sealed partial class MainWindow : Window
         }
 
         args.Cancel = true;
-        _refreshTimer.Stop();
         sender.Hide();
         HiddenToTray?.Invoke(this, EventArgs.Empty);
     }
@@ -513,7 +456,11 @@ public sealed partial class MainWindow : Window
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
                     process.ExecutablePath ?? string.Empty,
-                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath));
+                    await _iconProvider.GetIconAsync(
+                        process.Name,
+                        process.ExecutablePath,
+                        process.IconCacheKey),
+                    process.HasLimitedDetails);
             }
             else
             {
@@ -523,12 +470,21 @@ public sealed partial class MainWindow : Window
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
                     process.ExecutablePath ?? string.Empty,
-                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath)));
+                    await _iconProvider.GetIconAsync(
+                        process.Name,
+                        process.ExecutablePath,
+                        process.IconCacheKey),
+                    process.HasLimitedDetails));
             }
         }
 
         MoveRowsIntoSortedOrder(diff.SortedRows);
         UpdateProcessStatusText();
+    }
+
+    private Task ApplyProcessSnapshotSerializedAsync(IReadOnlyList<CompatibilityProcessInfo> processes)
+    {
+        return _processSnapshotGate.RunAsync(processes, ApplyProcessSnapshotAsync);
     }
 
     private void MoveRowsIntoSortedOrder(IReadOnlyList<CompatibilityProcessInfo> sortedRows)

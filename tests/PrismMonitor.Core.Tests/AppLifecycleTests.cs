@@ -35,6 +35,141 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(app, "OpenNotificationTargetAsync");
     }
 
+    [TestMethod]
+    public void WindowsProcessAdaptersSeparateSnapshotAndEnrichmentWork()
+    {
+        string snapshotProviderPath = FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "Processes",
+            "Win32ProcessSnapshotProvider.cs"));
+        string processesDirectory = Path.GetDirectoryName(snapshotProviderPath)!;
+        string enricherPath = Path.Combine(processesDirectory, "Win32ProcessEnricher.cs");
+
+        Assert.IsTrue(File.Exists(enricherPath));
+        StringAssert.Contains(File.ReadAllText(snapshotProviderPath), "Task.Run");
+        StringAssert.Contains(File.ReadAllText(enricherPath), "Task.Run");
+    }
+
+    [TestMethod]
+    public void WindowsEnricherDistinguishesAbsentMetadataFromRetryableReadFailures()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "Processes",
+            "Win32ProcessEnricher.cs")));
+
+        StringAssert.Contains(source, "AppModelErrorNoPackage");
+        StringAssert.Contains(source, "MetadataReadResult");
+        StringAssert.Contains(source, "HasLimitedDetails: errors.Count > 0");
+    }
+
+    [TestMethod]
+    public void RepositoryHasOneProcessCapturePathAndNoLegacyPullService()
+    {
+        string root = Path.GetDirectoryName(FindRepoFile("PrismMonitor.slnx"))!;
+        string[] directEnumerationFiles = Directory
+            .GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("Process.GetProcesses()", StringComparison.Ordinal))
+            .Select(path => Path.GetFileName(path)!)
+            .ToArray();
+
+        CollectionAssert.AreEqual(new[] { "Win32ProcessSnapshotProvider.cs" }, directEnumerationFiles);
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.Core", "Processes", "CompatibilityProcessService.cs")));
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.Core", "Processes", "IProcessInfoProvider.cs")));
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.App", "Processes", "Win32ProcessInfoProvider.cs")));
+    }
+
+    [TestMethod]
+    public void AppUsesOneMonitoringHostAndNoNotificationRefreshLoop()
+    {
+        string appPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "App.xaml.cs"));
+        string app = File.ReadAllText(appPath);
+        string hostPath = Path.Combine(
+            Path.GetDirectoryName(appPath)!,
+            "Monitoring",
+            "MonitoringHost.cs");
+
+        Assert.IsTrue(File.Exists(hostPath));
+        string host = File.ReadAllText(hostPath);
+        StringAssert.Contains(app, "MonitoringHost");
+        StringAssert.Contains(app, "new Win32ProcessSnapshotProvider()");
+        StringAssert.Contains(app, "new Win32ProcessEnricher()");
+        Assert.IsFalse(app.Contains("_notificationTimer", StringComparison.Ordinal));
+        Assert.IsFalse(app.Contains("NotificationTimer_Tick", StringComparison.Ordinal));
+        Assert.AreEqual(1, host.Split("new DispatcherTimer", StringSplitOptions.None).Length - 1);
+        StringAssert.Contains(host, "RefreshSchedulePolicy.GetRefreshInterval");
+        StringAssert.Contains(host, "await _coordinator.StopAsync()");
+    }
+
+    [TestMethod]
+    public void MainWindowConsumesSnapshotsWithoutOwningProcessTimerOrService()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "MainWindow.xaml.cs")));
+
+        Assert.IsFalse(source.Contains("CompatibilityProcessService", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("_refreshTimer", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("RefreshTimer_Tick", StringComparison.Ordinal));
+        StringAssert.Contains(source, "ApplyMonitoringSnapshotAsync");
+        StringAssert.Contains(source, "RefreshRequested");
+        StringAssert.Contains(source, "ConfigurationChanged");
+    }
+
+    [TestMethod]
+    public void AppSnapshotFanoutIsolatesEverySurfaceFailure()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "App.xaml.cs")));
+
+        StringAssert.Contains(source, "App.RecordHistory");
+        StringAssert.Contains(source, "App.UpdateTray");
+        StringAssert.Contains(source, "App.Notify");
+        StringAssert.Contains(source, "App.UpdateMainWindow");
+    }
+
+    [TestMethod]
+    public void AppFansOutOnePublishedSnapshotWithoutStartingAnotherScan()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "App.xaml.cs")));
+        string fanout = source[source.IndexOf("ApplySnapshotToSurfaces", StringComparison.Ordinal)..];
+
+        StringAssert.Contains(fanout, "snapshot.HistoryProcesses");
+        StringAssert.Contains(fanout, "snapshot.TrayProcesses");
+        StringAssert.Contains(fanout, "snapshot.NotifiableProcesses");
+        StringAssert.Contains(fanout, "TryUpdateMainWindow(snapshot)");
+        Assert.IsFalse(fanout.Contains("Process.GetProcesses()", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void IconExtractionStaysOutOfDiscoveryAndEnrichmentHotPath()
+    {
+        string snapshotProvider = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "Win32ProcessSnapshotProvider.cs")));
+        string enricher = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "Win32ProcessEnricher.cs")));
+        string iconProvider = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "ProcessIconProvider.cs")));
+        string mainWindow = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "MainWindow.xaml.cs")));
+
+        Assert.IsFalse(snapshotProvider.Contains("GetThumbnailAsync", StringComparison.Ordinal));
+        Assert.IsFalse(enricher.Contains("GetThumbnailAsync", StringComparison.Ordinal));
+        StringAssert.Contains(iconProvider, "_cache.TryGetValue");
+        StringAssert.Contains(mainWindow, "process.IconCacheKey");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

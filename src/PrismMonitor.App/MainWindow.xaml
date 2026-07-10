@@ -231,6 +231,11 @@
                                                         <TextBlock Style="{StaticResource DetailLabelTextStyle}" Text="CPU time" />
                                                         <TextBlock Grid.Column="1" Style="{StaticResource DetailValueTextStyle}" Text="{x:Bind CpuTime, Mode=OneWay}" />
                                                     </Grid>
+                                                    <TextBlock
+                                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                        Text="{x:Bind DetailsStatus, Mode=OneWay}"
+                                                        TextAlignment="Left"
+                                                        Visibility="{x:Bind DetailsStatusVisibility, Mode=OneWay}" />
                                                     <Grid ColumnSpacing="8">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="84" />
@@ -562,7 +567,7 @@
                                     Toggled="IncludeArm64EcToggle_Toggled" />
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    Text="Power-aware refresh pauses while the main window is hidden."
+                                    Text="On battery, background refresh slows to every 30 seconds while the main window is hidden."
                                     TextWrapping="WrapWholeWords" />
                             </StackPanel>
 

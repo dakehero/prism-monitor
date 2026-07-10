@@ -2,25 +2,23 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using Microsoft.Windows.AppNotifications;
-using PrismMonitor.Core.History;
-using PrismMonitor.Core.Monitoring;
-using PrismMonitor.Core.Notifications;
-using PrismMonitor.Core.Processes;
-using PrismMonitor.Core.Power;
-using PrismMonitor.Core.Rules;
-using PrismMonitor.Core.Settings;
-using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Diagnostics;
+using PrismMonitor.App.Monitoring;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Power;
 using PrismMonitor.App.Processes;
 using PrismMonitor.App.Tray;
+using PrismMonitor.Core.History;
+using PrismMonitor.Core.Monitoring;
+using PrismMonitor.Core.Notifications;
+using PrismMonitor.Core.Processes;
+using PrismMonitor.Core.Settings;
+using PrismMonitor.Core.Ui;
 
 namespace PrismMonitor.App;
 
 public partial class App : Application
 {
-    private readonly CompatibilityProcessService _processService = new(new Win32ProcessInfoProvider());
     private readonly IgnoredProcessStore _ignoredProcessStore = new(Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PrismMonitor",
@@ -39,17 +37,18 @@ public partial class App : Application
             "PrismMonitor",
             "launch-summary.json"));
     private readonly LaunchHistoryRecorder _launchHistoryRecorder = new();
-    private readonly PowerStatusProvider _powerStatusProvider = new();
     private readonly CompatibilityProcessNotifier _processNotifier = new();
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-    private readonly DispatcherTimer _notificationTimer = new();
+    private readonly MonitoringCoordinator _monitoringCoordinator = new(
+        new Win32ProcessSnapshotProvider(),
+        new Win32ProcessEnricher());
+    private readonly PowerStatusProvider _powerStatusProvider = new();
     private MainWindow? _window;
     private ShellTrayIcon? _trayIcon;
     private CompatibilityProcessToastService? _toastService;
-    private bool _isNotificationRefreshRunning;
+    private MonitoringHost? _monitoringHost;
     private bool _isMainWindowVisible;
-    private DateTimeOffset _lastInteractionRefresh = DateTimeOffset.MinValue;
 
     public App()
     {
@@ -73,17 +72,36 @@ public partial class App : Application
 
         _toastService = new CompatibilityProcessToastService(_ignoredProcessStore);
         _toastService.ProcessOpenRequested += ToastService_ProcessOpenRequested;
+        _toastService.RulesChanged += ToastService_RulesChanged;
         _toastService.Register();
 
-        _powerStatusProvider.PowerSourceChanged += PowerStatusProvider_PowerSourceChanged;
-        _notificationTimer.Interval = TimeSpan.FromSeconds(1);
-        _notificationTimer.Tick += NotificationTimer_Tick;
-        UpdateNotificationTimer();
-        RequestInteractionRefresh();
+        _monitoringHost = new MonitoringHost(
+            _monitoringCoordinator,
+            _ignoredProcessStore,
+            _settingsStore,
+            _powerStatusProvider,
+            _dispatcherQueue);
+        _monitoringHost.SnapshotPublished += MonitoringHost_SnapshotPublished;
+        _ = StartMonitoringAsync();
 
         if (TryGetNotificationActivation(AppInstance.GetCurrent().GetActivatedEventArgs(), out NotificationActivation activation))
         {
             HandleNotificationActivation(activation);
+        }
+    }
+
+    private async Task StartMonitoringAsync()
+    {
+        try
+        {
+            if (_monitoringHost is not null)
+            {
+                await _monitoringHost.StartAsync();
+            }
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Write("App.StartMonitoring", exception);
         }
     }
 
@@ -92,33 +110,41 @@ public partial class App : Application
         MainWindow window = EnsureMainWindow();
 
         _isMainWindowVisible = true;
-        UpdateNotificationTimer();
+        _monitoringHost?.SetMainWindowVisible(true);
         window.ShowMainWindow();
         window.Activate();
-        ScheduleRefreshProcessWindow(window);
+        if (_monitoringHost?.LatestSnapshot is MonitoringSnapshot snapshot)
+        {
+            TryUpdateMainWindow(snapshot);
+        }
     }
 
-    private void ExitApplication()
+    private async void ExitApplication()
     {
         _windowLifetime.RequestExitClose();
-        _notificationTimer.Stop();
-        _powerStatusProvider.PowerSourceChanged -= PowerStatusProvider_PowerSourceChanged;
-        _powerStatusProvider.Dispose();
+        if (_monitoringHost is not null)
+        {
+            _monitoringHost.SnapshotPublished -= MonitoringHost_SnapshotPublished;
+            await _monitoringHost.DisposeAsync();
+        }
+
         _window?.CloseForExit();
         _trayIcon?.Dispose();
         if (_toastService is not null)
         {
             _toastService.ProcessOpenRequested -= ToastService_ProcessOpenRequested;
+            _toastService.RulesChanged -= ToastService_RulesChanged;
         }
 
         _toastService?.Dispose();
         Exit();
     }
 
-    private async Task<TrayStatus> GetTrayStatusAsync()
+    private Task<TrayStatus> GetTrayStatusAsync()
     {
-        MonitoringSnapshot snapshot = await ReadMonitoringSnapshotAsync();
-        return CreateTrayStatus(snapshot.TrayProcesses);
+        IReadOnlyList<CompatibilityProcessInfo> processes =
+            _monitoringHost?.LatestSnapshot?.TrayProcesses ?? [];
+        return Task.FromResult(CreateTrayStatus(processes));
     }
 
     private static TrayStatus CreateTrayStatus(IReadOnlyList<CompatibilityProcessInfo> visibleProcesses)
@@ -138,22 +164,28 @@ public partial class App : Application
         }
 
         _window = new MainWindow(
-            _processService,
             _ignoredProcessStore,
             _settingsStore,
             _launchHistoryStore);
+        _window.RefreshRequested += MainWindow_RefreshRequested;
+        _window.ConfigurationChanged += MainWindow_ConfigurationChanged;
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) =>
         {
             _windowLifetime.MarkHiddenToTray();
             _isMainWindowVisible = false;
-            UpdateNotificationTimer();
+            _monitoringHost?.SetMainWindowVisible(false);
         };
         _window.Closed += (_, _) =>
         {
             _windowLifetime.MarkWindowClosed();
             _isMainWindowVisible = false;
-            UpdateNotificationTimer();
+            _monitoringHost?.SetMainWindowVisible(false);
+            if (_window is not null)
+            {
+                _window.RefreshRequested -= MainWindow_RefreshRequested;
+                _window.ConfigurationChanged -= MainWindow_ConfigurationChanged;
+            }
             if (_windowLifetime.NeedsWindow)
             {
                 _window = null;
@@ -163,20 +195,21 @@ public partial class App : Application
         return _window;
     }
 
-    private static void ScheduleRefreshProcessWindow(MainWindow window)
+    private void MainWindow_RefreshRequested(object? sender, EventArgs e)
     {
-        _ = window.DispatcherQueue.TryEnqueue(async () => await RefreshProcessWindowAsync(window));
+        if (_monitoringHost is not null)
+        {
+            _ = _monitoringHost.RequestRefreshAsync(
+                MonitoringRefreshReason.Manual,
+                fullDetails: true);
+        }
     }
 
-    private static async Task RefreshProcessWindowAsync(MainWindow window)
+    private void MainWindow_ConfigurationChanged(object? sender, EventArgs e)
     {
-        try
+        if (_monitoringHost is not null)
         {
-            await window.RefreshAsync();
-        }
-        catch
-        {
-            // Keep tray callbacks from terminating the app if a refresh fails.
+            _ = _monitoringHost.ReloadConfigurationAsync();
         }
     }
 
@@ -194,6 +227,17 @@ public partial class App : Application
     private void ToastService_ProcessOpenRequested(object? sender, NotificationProcessOpenRequestedEventArgs e)
     {
         _ = _dispatcherQueue.TryEnqueue(async () => await OpenNotificationTargetAsync(e.ProcessId, e.ProcessName));
+    }
+
+    private void ToastService_RulesChanged(object? sender, EventArgs e)
+    {
+        _ = _dispatcherQueue.TryEnqueue(async () =>
+        {
+            if (_monitoringHost is not null)
+            {
+                await _monitoringHost.ReloadConfigurationAsync();
+            }
+        });
     }
 
     private void HandleNotificationActivation(NotificationActivation activation)
@@ -233,16 +277,23 @@ public partial class App : Application
         MainWindow window = EnsureMainWindow();
 
         _isMainWindowVisible = true;
-        UpdateNotificationTimer();
+        _monitoringHost?.SetMainWindowVisible(true);
         window.ShowMainWindow();
         window.Activate();
 
-        MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
-        CompatibilityProcessInfo? currentProcess = snapshot.Processes.FirstOrDefault(
+        if (_monitoringHost is not null)
+        {
+            await _monitoringHost.RequestRefreshAsync(
+                MonitoringRefreshReason.WindowVisible,
+                fullDetails: true);
+        }
+
+        MonitoringSnapshot? snapshot = _monitoringHost?.LatestSnapshot;
+        CompatibilityProcessInfo? currentProcess = snapshot?.Processes.FirstOrDefault(
             process => process.ProcessId == processId
                 && string.Equals(process.Name, processName, StringComparison.OrdinalIgnoreCase));
 
-        if (currentProcess is not null)
+        if (currentProcess is not null && snapshot is not null)
         {
             await window.ShowProcessesAndFocusAsync(processId, snapshot.Processes);
             return;
@@ -251,86 +302,83 @@ public partial class App : Application
         await window.ShowHistoryForProcessAsync(processName);
     }
 
-    private void PowerStatusProvider_PowerSourceChanged(object? sender, EventArgs e)
-    {
-        _ = _dispatcherQueue.TryEnqueue(() =>
-        {
-            UpdateNotificationTimer();
-            RequestInteractionRefresh();
-        });
-    }
-
-    private void UpdateNotificationTimer()
-    {
-        PowerSource powerSource = _powerStatusProvider.GetCurrentPowerSource();
-        RefreshMode refreshMode = RefreshSchedulePolicy.GetRefreshMode(powerSource, _isMainWindowVisible);
-        _notificationTimer.Interval = RefreshSchedulePolicy.GetBackgroundRefreshInterval(powerSource, _isMainWindowVisible);
-        _window?.SetRefreshInterval(RefreshSchedulePolicy.GetMainWindowRefreshInterval(powerSource));
-
-        if (refreshMode == RefreshMode.PeriodicBackground)
-        {
-            _notificationTimer.Start();
-            return;
-        }
-
-        _notificationTimer.Stop();
-    }
-
     private void RequestInteractionRefresh()
     {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        if (now - _lastInteractionRefresh < TimeSpan.FromSeconds(2))
+        if (_monitoringHost is not null)
         {
-            return;
+            _ = _monitoringHost.RequestRefreshAsync(MonitoringRefreshReason.Interaction);
         }
-
-        _lastInteractionRefresh = now;
-        _ = _dispatcherQueue.TryEnqueue(() => NotificationTimer_Tick(null, new object()));
     }
 
-    private async void NotificationTimer_Tick(object? sender, object e)
+    private void MonitoringHost_SnapshotPublished(object? sender, MonitoringSnapshot snapshot)
     {
-        if (_isNotificationRefreshRunning)
-        {
-            return;
-        }
+        _ = _dispatcherQueue.TryEnqueue(() => ApplySnapshotToSurfaces(snapshot));
+    }
 
-        _isNotificationRefreshRunning = true;
+    private async void ApplySnapshotToSurfaces(MonitoringSnapshot snapshot)
+    {
+        Task historyWrite = TryRecordHistoryAsync(snapshot.HistoryProcesses);
+        TryUpdateTray(snapshot.TrayProcesses);
+        TryNotify(snapshot.NotifiableProcesses);
+        TryUpdateMainWindow(snapshot);
+        await historyWrite;
+    }
+
+    private async Task TryRecordHistoryAsync(IReadOnlyList<CompatibilityProcessInfo> processes)
+    {
         try
         {
-            MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
+            IReadOnlyList<LaunchHistoryEvent> events = _launchHistoryRecorder.CaptureNewEvents(processes);
+            await _launchHistoryStore.AppendRangeAsync(events);
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Write("App.RecordHistory", exception);
+        }
+    }
 
-            IReadOnlyList<LaunchHistoryEvent> historyEvents = _launchHistoryRecorder.CaptureNewEvents(
-                snapshot.HistoryProcesses,
-                DateTimeOffset.UtcNow);
-            foreach (LaunchHistoryEvent historyEvent in historyEvents)
-            {
-                await _launchHistoryStore.AppendAsync(historyEvent);
-            }
+    private void TryUpdateTray(IReadOnlyList<CompatibilityProcessInfo> processes)
+    {
+        try
+        {
+            _trayIcon?.UpdateStatus(CreateTrayStatus(processes));
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Write("App.UpdateTray", exception);
+        }
+    }
 
-            _trayIcon?.UpdateStatus(CreateTrayStatus(snapshot.TrayProcesses));
-            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(snapshot.NotifiableProcesses);
-
+    private void TryNotify(IReadOnlyList<CompatibilityProcessInfo> processes)
+    {
+        try
+        {
+            IReadOnlyList<CompatibilityProcessInfo> newProcesses = _processNotifier.CaptureNewProcesses(processes);
             foreach (CompatibilityProcessInfo process in newProcesses)
             {
                 _toastService?.ShowNewProcess(process);
             }
         }
-        catch
+        catch (Exception exception)
         {
-            // Toast monitoring is best-effort and must not terminate the tray app.
-        }
-        finally
-        {
-            _isNotificationRefreshRunning = false;
+            StartupDiagnostics.Write("App.Notify", exception);
         }
     }
 
-    private async Task<MonitoringSnapshot> ReadMonitoringSnapshotAsync()
+    private async void TryUpdateMainWindow(MonitoringSnapshot snapshot)
     {
-        IReadOnlyList<CompatibilityProcessInfo> processes = await _processService.GetCurrentProcessesAsync();
-        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
-        MonitoringSettings settings = await _settingsStore.GetAsync();
-        return MonitoringSnapshotBuilder.Build(processes, rules, settings);
+        if (!_isMainWindowVisible || _window is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _window.ApplyMonitoringSnapshotAsync(snapshot);
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Write("App.UpdateMainWindow", exception);
+        }
     }
 }

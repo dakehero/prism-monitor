@@ -14,11 +14,11 @@ public sealed class RefreshSchedulePolicyTests
     }
 
     [TestMethod]
-    public void UsesInteractionOnlyRefreshOnBatteryWhenMainWindowIsHidden()
+    public void UsesPeriodicFallbackRefreshOnBatteryWhenMainWindowIsHidden()
     {
         RefreshMode mode = RefreshSchedulePolicy.GetRefreshMode(PowerSource.Battery, isMainWindowVisible: false);
 
-        Assert.AreEqual(RefreshMode.InteractionOnly, mode);
+        Assert.AreEqual(RefreshMode.PeriodicBackground, mode);
     }
 
     [TestMethod]
@@ -73,5 +73,21 @@ public sealed class RefreshSchedulePolicyTests
             isMainWindowVisible: false);
 
         Assert.AreEqual(TimeSpan.FromSeconds(3), interval);
+    }
+
+    [TestMethod]
+    [DataRow(PowerSource.AC, false, 3)]
+    [DataRow(PowerSource.AC, true, 3)]
+    [DataRow(PowerSource.Unknown, false, 3)]
+    [DataRow(PowerSource.Battery, true, 10)]
+    [DataRow(PowerSource.Battery, false, 30)]
+    public void GetRefreshInterval_UsesSingleAdaptiveSchedule(
+        PowerSource powerSource,
+        bool isMainWindowVisible,
+        int expectedSeconds)
+    {
+        TimeSpan interval = RefreshSchedulePolicy.GetRefreshInterval(powerSource, isMainWindowVisible);
+
+        Assert.AreEqual(TimeSpan.FromSeconds(expectedSeconds), interval);
     }
 }

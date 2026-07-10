@@ -4,6 +4,26 @@ namespace PrismMonitor.Core.Tests;
 public sealed class MainWindowLayoutTests
 {
     [TestMethod]
+    public void ProcessDetailsExposeLimitedMetadataState()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+        string row = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "ProcessRow.cs")));
+
+        StringAssert.Contains(xaml, "DetailsStatus");
+        StringAssert.Contains(xaml, "DetailsStatusVisibility");
+        StringAssert.Contains(row, "Limited details");
+    }
+
+    [TestMethod]
+    public void SettingsExplainHiddenBatteryFallback()
+    {
+        string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
+
+        Assert.IsFalse(xaml.Contains("refresh pauses", StringComparison.OrdinalIgnoreCase));
+        StringAssert.Contains(xaml, "30 seconds");
+    }
+
+    [TestMethod]
     public void MainWindowListsExposeVerticalScrollbars()
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));

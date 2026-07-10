@@ -2,9 +2,14 @@ namespace PrismMonitor.Core.Processes;
 
 public static class CpuTimeFormatter
 {
-    public static string Format(TimeSpan cpuTime)
+    public static string Format(TimeSpan? cpuTime)
     {
-        long totalSeconds = Math.Max(0, (long)cpuTime.TotalSeconds);
+        if (cpuTime is null)
+        {
+            return "Unavailable";
+        }
+
+        long totalSeconds = Math.Max(0, (long)cpuTime.Value.TotalSeconds);
         long hours = totalSeconds / 3600;
         long minutes = totalSeconds % 3600 / 60;
         long seconds = totalSeconds % 60;
