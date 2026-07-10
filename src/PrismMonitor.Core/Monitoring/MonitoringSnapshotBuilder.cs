@@ -9,7 +9,9 @@ public static class MonitoringSnapshotBuilder
     public static MonitoringSnapshot Build(
         IReadOnlyList<CompatibilityProcessInfo> processes,
         IReadOnlyList<AppIdentityRule> rules,
-        MonitoringSettings settings)
+        MonitoringSettings settings,
+        long sequence = 0,
+        DateTimeOffset capturedAt = default)
     {
         IReadOnlyList<CompatibilityProcessInfo> includedProcesses =
             ArchitectureProcessFilter.FilterVisibleProcesses(processes, settings);
@@ -20,6 +22,8 @@ public static class MonitoringSnapshotBuilder
             AppIdentityRuleFilter.FilterProcesses(includedProcesses, rules, SuppressionTarget.Processes),
             AppIdentityRuleFilter.FilterProcesses(includedProcesses, rules, SuppressionTarget.Tray),
             AppIdentityRuleFilter.FilterProcesses(notifiableProcesses, rules, SuppressionTarget.Toast),
-            AppIdentityRuleFilter.FilterProcesses(includedProcesses, rules, SuppressionTarget.History));
+            AppIdentityRuleFilter.FilterProcesses(includedProcesses, rules, SuppressionTarget.History),
+            sequence,
+            capturedAt);
     }
 }
