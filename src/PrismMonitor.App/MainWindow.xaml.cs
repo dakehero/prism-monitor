@@ -411,60 +411,48 @@ public sealed partial class MainWindow : Window
             .OrderBy(rule => rule.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(RuleRow.CreateMatchSummary, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        Dictionary<string, RuleRow> rowsByKey = RuleRows.ToDictionary(
-            row => RuleRow.CreateKey(row.Rule),
-            StringComparer.OrdinalIgnoreCase);
-        HashSet<string> nextKeys = sortedRules
-            .Select(RuleRow.CreateKey)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        RuleRow[] existingRows = RuleRows.ToArray();
+        AppIdentityRuleReconciliation reconciliation = AppIdentityRuleReconciler.Reconcile(
+            existingRows.Select(row => row.Rule).ToArray(),
+            sortedRules);
 
-        foreach (RuleRow rowToRemove in RuleRows
-            .Where(row => !nextKeys.Contains(RuleRow.CreateKey(row.Rule)))
-            .ToList())
+        foreach (int existingIndex in reconciliation.RemovedExistingIndexes.OrderDescending())
         {
-            RuleRows.Remove(rowToRemove);
+            RuleRows.Remove(existingRows[existingIndex]);
         }
 
-        foreach (AppIdentityRule rule in sortedRules)
+        List<RuleRow> nextRows = new(sortedRules.Count);
+        foreach (AppIdentityRuleReconciliationMatch match in reconciliation.Matches)
         {
-            string key = RuleRow.CreateKey(rule);
-            if (rowsByKey.TryGetValue(key, out RuleRow? row))
+            AppIdentityRule rule = sortedRules[match.IncomingIndex];
+            RuleRow row;
+            if (match.ExistingIndex is int existingIndex)
             {
+                row = existingRows[existingIndex];
                 row.Update(rule);
             }
             else
             {
-                RuleRows.Add(new RuleRow(rule));
+                row = new RuleRow(rule);
+                RuleRows.Add(row);
             }
+
+            nextRows.Add(row);
         }
 
-        MoveRuleRowsIntoSortedOrder(sortedRules);
+        MoveRuleRowsIntoSortedOrder(nextRows);
     }
 
-    private void MoveRuleRowsIntoSortedOrder(IReadOnlyList<AppIdentityRule> rules)
+    private void MoveRuleRowsIntoSortedOrder(IReadOnlyList<RuleRow> rows)
     {
-        for (int targetIndex = 0; targetIndex < rules.Count; targetIndex++)
+        for (int targetIndex = 0; targetIndex < rows.Count; targetIndex++)
         {
-            string key = RuleRow.CreateKey(rules[targetIndex]);
-            int currentIndex = IndexOfRuleRow(key);
+            int currentIndex = RuleRows.IndexOf(rows[targetIndex]);
             if (currentIndex >= 0 && currentIndex != targetIndex)
             {
                 RuleRows.Move(currentIndex, targetIndex);
             }
         }
-    }
-
-    private int IndexOfRuleRow(string ruleKey)
-    {
-        for (int index = 0; index < RuleRows.Count; index++)
-        {
-            if (string.Equals(RuleRow.CreateKey(RuleRows[index].Rule), ruleKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return index;
-            }
-        }
-
-        return -1;
     }
 
     private async Task LoadSettingsControlsAsync()
