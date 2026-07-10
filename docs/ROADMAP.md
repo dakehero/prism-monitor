@@ -178,7 +178,7 @@ Follow-up proof is tracked in v0.7.3.
 
 ### v0.7.2 App Rules Workflow
 
-Status: in progress on this branch.
+Status: implementation complete on `codex/0.7-low-power-snapshot`; package-level tray and Toast visual checks remain a v0.7 release gate.
 
 Goal: replace the legacy ignored-name workflow with a real app rules surface.
 
@@ -220,14 +220,15 @@ Current branch state:
 - Automated Core tests cover app identity rules across Processes, History, tray, and Toast snapshot outputs.
 - v0.7.2 acceptance tests cover running-process suppression/restoration, history-created rules after process exit, target editing, and legacy ignored-name migration.
 - App wiring tests verify tray status, Toast detection, and history recording all consume the same rule-filtered monitoring snapshot.
-- A live UI review attempt is documented in `docs/verification/2026-07-10-v0.7.2-live-ui-review.md`; current automation can read the window accessibility tree but cannot capture or activate the WinUI window.
+- Live Release rendering verifies Processes, History, Rules, Settings, expanded details, scrolling, rule creation, and target editing.
+- Target edits reconcile Rules rows in place, including same-identity target collisions, so the list does not flash empty.
+- The full Core suite passes with 155 tests and the `win-arm64` Release build succeeds with only the two known Windows SDK trim warnings.
+- The live UI evidence and the remaining notification-area capture boundary are documented in `docs/verification/2026-07-10-v0.7.2-live-ui-review.md`.
 
-Remaining before v0.7.2 is done:
+Package-level release follow-up:
 
-- Add a richer edit path for existing rules if render review shows target editing is not enough.
-- Manually verify rule effects across the live Processes, History, tray tooltip/menu, and Toast notification paths.
-- Complete render review for Processes, History, Rules, Settings, tray menu, and Toast activation surfaces affected by rules.
-- Run full tests and `win-arm64` Release build after the final UI pass.
+- Manually capture the tray right-click menu and dynamic Top N content.
+- Manually capture a system Toast and verify body-click activation from the current MSIX identity.
 
 Exit criteria:
 
