@@ -144,6 +144,40 @@ public sealed class MonitoringCoordinatorTests
     }
 
     [TestMethod]
+    public async Task RequestRefreshAsync_PublishesNewCompatibilityInstancesOnNextCycle()
+    {
+        CyclingSnapshotProvider provider = new(
+            [Observation(1)],
+            [Observation(1), Observation(2), Observation(3)]);
+        MonitoringCoordinator coordinator = CreateCoordinator(
+            provider,
+            new RecordingEnricher((snapshot, request) => Compatible(snapshot, request) with
+            {
+                Architecture = snapshot.ProcessId switch
+                {
+                    1 => "x86",
+                    2 => "x64",
+                    _ => "ARM64EC"
+                }
+            }));
+
+        _ = await coordinator.RequestRefreshAsync(MonitoringRefreshRequest.Periodic);
+        MonitoringSnapshot next = await coordinator.RequestRefreshAsync(MonitoringRefreshRequest.Periodic);
+
+        int[] expectedProcessIds = [1, 2, 3];
+        CollectionAssert.AreEqual(expectedProcessIds, ProcessIds(next.Processes));
+        CollectionAssert.AreEqual(expectedProcessIds, ProcessIds(next.TrayProcesses));
+        CollectionAssert.AreEqual(expectedProcessIds, ProcessIds(next.NotifiableProcesses));
+        CollectionAssert.AreEqual(expectedProcessIds, ProcessIds(next.HistoryProcesses));
+        Assert.AreEqual(2L, next.Sequence);
+
+        static int[] ProcessIds(IReadOnlyList<CompatibilityProcessInfo> processes)
+        {
+            return processes.Select(process => process.ProcessId).Order().ToArray();
+        }
+    }
+
+    [TestMethod]
     public async Task StopAsync_CancelsAndWaitsForActiveCapture()
     {
         CancellationAwareSnapshotProvider provider = new();
@@ -224,6 +258,20 @@ public sealed class MonitoringCoordinatorTests
             return _callCount == 1
                 ? Task.FromResult(first)
                 : Task.FromException<IReadOnlyList<ProcessObservation>>(second);
+        }
+    }
+
+    private sealed class CyclingSnapshotProvider(
+        params IReadOnlyList<ProcessObservation>[] cycles)
+        : IProcessSnapshotProvider
+    {
+        private int _callCount;
+
+        public Task<IReadOnlyList<ProcessObservation>> CaptureAsync(
+            CancellationToken cancellationToken = default)
+        {
+            int index = Math.Min(Interlocked.Increment(ref _callCount) - 1, cycles.Length - 1);
+            return Task.FromResult(cycles[index]);
         }
     }
 

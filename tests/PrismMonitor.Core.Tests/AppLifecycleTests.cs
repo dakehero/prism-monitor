@@ -136,6 +136,40 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(source, "App.UpdateMainWindow");
     }
 
+    [TestMethod]
+    public void AppFansOutOnePublishedSnapshotWithoutStartingAnotherScan()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "App.xaml.cs")));
+        string fanout = source[source.IndexOf("ApplySnapshotToSurfaces", StringComparison.Ordinal)..];
+
+        StringAssert.Contains(fanout, "snapshot.HistoryProcesses");
+        StringAssert.Contains(fanout, "snapshot.TrayProcesses");
+        StringAssert.Contains(fanout, "snapshot.NotifiableProcesses");
+        StringAssert.Contains(fanout, "TryUpdateMainWindow(snapshot)");
+        Assert.IsFalse(fanout.Contains("Process.GetProcesses()", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void IconExtractionStaysOutOfDiscoveryAndEnrichmentHotPath()
+    {
+        string snapshotProvider = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "Win32ProcessSnapshotProvider.cs")));
+        string enricher = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "Win32ProcessEnricher.cs")));
+        string iconProvider = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "Processes", "ProcessIconProvider.cs")));
+        string mainWindow = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src", "PrismMonitor.App", "MainWindow.xaml.cs")));
+
+        Assert.IsFalse(snapshotProvider.Contains("GetThumbnailAsync", StringComparison.Ordinal));
+        Assert.IsFalse(enricher.Contains("GetThumbnailAsync", StringComparison.Ordinal));
+        StringAssert.Contains(iconProvider, "_cache.TryGetValue");
+        StringAssert.Contains(mainWindow, "process.IconCacheKey");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
