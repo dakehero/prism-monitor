@@ -58,6 +58,27 @@ public sealed class AppLifecycleTests
         Assert.IsFalse(bridge.Contains("Process.GetProcesses()", StringComparison.Ordinal));
     }
 
+    [TestMethod]
+    public void AppUsesOneMonitoringHostAndNoNotificationRefreshLoop()
+    {
+        string appPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "App.xaml.cs"));
+        string app = File.ReadAllText(appPath);
+        string hostPath = Path.Combine(
+            Path.GetDirectoryName(appPath)!,
+            "Monitoring",
+            "MonitoringHost.cs");
+
+        Assert.IsTrue(File.Exists(hostPath));
+        string host = File.ReadAllText(hostPath);
+        StringAssert.Contains(app, "MonitoringHost");
+        StringAssert.Contains(app, "new Win32ProcessSnapshotProvider()");
+        StringAssert.Contains(app, "new Win32ProcessEnricher()");
+        Assert.IsFalse(app.Contains("_notificationTimer", StringComparison.Ordinal));
+        Assert.IsFalse(app.Contains("NotificationTimer_Tick", StringComparison.Ordinal));
+        Assert.AreEqual(1, host.Split("new DispatcherTimer", StringSplitOptions.None).Length - 1);
+        StringAssert.Contains(host, "RefreshSchedulePolicy.GetRefreshInterval");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
