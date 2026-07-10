@@ -10,7 +10,7 @@ public sealed class ProcessEnrichmentCacheTests
     {
         ProcessEnrichmentCache cache = new();
         int factoryCalls = 0;
-        ProcessSnapshotInfo snapshot = new(100, "Tool", TimeSpan.FromSeconds(1), DateTimeOffset.UnixEpoch);
+        ProcessSnapshotInfo snapshot = Snapshot(100, "Tool", TimeSpan.FromSeconds(1), DateTimeOffset.UnixEpoch);
 
         ProcessEnrichmentInfo first = cache.GetOrAdd(snapshot, _ =>
         {
@@ -33,10 +33,14 @@ public sealed class ProcessEnrichmentCacheTests
     {
         ProcessEnrichmentCache cache = new();
         int factoryCalls = 0;
-        ProcessSnapshotInfo firstSnapshot = new(100, "Tool", TimeSpan.FromSeconds(1), DateTimeOffset.UnixEpoch);
+        ProcessSnapshotInfo firstSnapshot = Snapshot(100, "Tool", TimeSpan.FromSeconds(1), DateTimeOffset.UnixEpoch);
         ProcessSnapshotInfo reusedPidSnapshot = firstSnapshot with
         {
-            CreationTime = DateTimeOffset.UnixEpoch.AddMinutes(1)
+            CreationTime = DateTimeOffset.UnixEpoch.AddMinutes(1),
+            InstanceKey = new ProcessInstanceKey(
+                firstSnapshot.ProcessId,
+                DateTimeOffset.UnixEpoch.AddMinutes(1),
+                IsCreationTimeVerified: true)
         };
 
         _ = cache.GetOrAdd(firstSnapshot, _ =>
@@ -59,7 +63,7 @@ public sealed class ProcessEnrichmentCacheTests
     {
         ProcessEnrichmentCache cache = new();
         int factoryCalls = 0;
-        ProcessSnapshotInfo snapshot = new(100, "Tool", TimeSpan.FromSeconds(1), CreationTime: null);
+        ProcessSnapshotInfo snapshot = Snapshot(100, "Tool", TimeSpan.FromSeconds(1), creationTime: null);
 
         _ = cache.GetOrAdd(snapshot, _ =>
         {
@@ -80,8 +84,8 @@ public sealed class ProcessEnrichmentCacheTests
     public void Prune_RemovesMetadataForExitedProcesses()
     {
         ProcessEnrichmentCache cache = new();
-        ProcessSnapshotInfo removedSnapshot = new(100, "Removed", TimeSpan.Zero, DateTimeOffset.UnixEpoch);
-        ProcessSnapshotInfo activeSnapshot = new(200, "Active", TimeSpan.Zero, DateTimeOffset.UnixEpoch);
+        ProcessSnapshotInfo removedSnapshot = Snapshot(100, "Removed", TimeSpan.Zero, DateTimeOffset.UnixEpoch);
+        ProcessSnapshotInfo activeSnapshot = Snapshot(200, "Active", TimeSpan.Zero, DateTimeOffset.UnixEpoch);
         _ = cache.GetOrAdd(removedSnapshot, _ => new ProcessEnrichmentInfo("x64", @"C:\Removed.exe"));
         _ = cache.GetOrAdd(activeSnapshot, _ => new ProcessEnrichmentInfo("x86", @"C:\Active.exe"));
 
@@ -89,5 +93,24 @@ public sealed class ProcessEnrichmentCacheTests
 
         Assert.IsFalse(cache.Contains(removedSnapshot));
         Assert.IsTrue(cache.Contains(activeSnapshot));
+    }
+
+    private static ProcessSnapshotInfo Snapshot(
+        int processId,
+        string name,
+        TimeSpan? cpuTime,
+        DateTimeOffset? creationTime)
+    {
+        DateTimeOffset detectedAt = DateTimeOffset.UnixEpoch;
+        return new ProcessSnapshotInfo(
+            processId,
+            name,
+            cpuTime,
+            creationTime,
+            detectedAt,
+            new ProcessInstanceKey(
+                processId,
+                creationTime ?? detectedAt,
+                creationTime is not null));
     }
 }
