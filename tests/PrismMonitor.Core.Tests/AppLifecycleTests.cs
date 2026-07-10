@@ -36,26 +36,38 @@ public sealed class AppLifecycleTests
     }
 
     [TestMethod]
-    public void WindowsProcessProviderDelegatesToSeparateSnapshotAndEnrichmentAdapters()
+    public void WindowsProcessAdaptersSeparateSnapshotAndEnrichmentWork()
     {
-        string bridgePath = FindRepoFile(Path.Combine(
+        string snapshotProviderPath = FindRepoFile(Path.Combine(
             "src",
             "PrismMonitor.App",
             "Processes",
-            "Win32ProcessInfoProvider.cs"));
-        string processesDirectory = Path.GetDirectoryName(bridgePath)!;
-        string snapshotProviderPath = Path.Combine(processesDirectory, "Win32ProcessSnapshotProvider.cs");
+            "Win32ProcessSnapshotProvider.cs"));
+        string processesDirectory = Path.GetDirectoryName(snapshotProviderPath)!;
         string enricherPath = Path.Combine(processesDirectory, "Win32ProcessEnricher.cs");
 
-        Assert.IsTrue(File.Exists(snapshotProviderPath));
         Assert.IsTrue(File.Exists(enricherPath));
         StringAssert.Contains(File.ReadAllText(snapshotProviderPath), "Task.Run");
         StringAssert.Contains(File.ReadAllText(enricherPath), "Task.Run");
+    }
 
-        string bridge = File.ReadAllText(bridgePath);
-        StringAssert.Contains(bridge, "Win32ProcessSnapshotProvider");
-        StringAssert.Contains(bridge, "Win32ProcessEnricher");
-        Assert.IsFalse(bridge.Contains("Process.GetProcesses()", StringComparison.Ordinal));
+    [TestMethod]
+    public void RepositoryHasOneProcessCapturePathAndNoLegacyPullService()
+    {
+        string root = Path.GetDirectoryName(FindRepoFile("PrismMonitor.slnx"))!;
+        string[] directEnumerationFiles = Directory
+            .GetFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadAllText(path).Contains("Process.GetProcesses()", StringComparison.Ordinal))
+            .Select(path => Path.GetFileName(path)!)
+            .ToArray();
+
+        CollectionAssert.AreEqual(new[] { "Win32ProcessSnapshotProvider.cs" }, directEnumerationFiles);
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.Core", "Processes", "CompatibilityProcessService.cs")));
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.Core", "Processes", "IProcessInfoProvider.cs")));
+        Assert.IsFalse(File.Exists(Path.Combine(
+            root, "src", "PrismMonitor.App", "Processes", "Win32ProcessInfoProvider.cs")));
     }
 
     [TestMethod]
