@@ -110,7 +110,7 @@ Acceptance criteria:
 
 ## v0.7 Low-Power App Identity Roadmap
 
-Status: planned.
+Status: in progress. v0.7.0 and v0.7.1 implementation is complete; the real-battery v0.7.0 release gate remains pending. See [the monitoring verification record](verification/2026-07-10-v0.7.0-v0.7.1-monitoring-verification.md).
 
 v0.7 is the release that makes Prism Monitor feel cheap enough to leave running all day. The theme is "observe lightly, enrich deliberately": avoid repeated full process scans in the tray path, cache expensive identity details, and make all filtering decisions flow through one app-identity rule engine.
 
@@ -129,6 +129,8 @@ v0.7 is the release that makes Prism Monitor feel cheap enough to leave running 
 - Do not redesign packaging, signing, or release automation as part of 0.7.
 
 ### v0.7.0 Low-Power Process Pipeline
+
+Status: implemented; real-battery release evidence pending.
 
 Build a shared monitoring pipeline that all runtime surfaces use instead of each surface enumerating processes independently.
 
@@ -152,6 +154,8 @@ Acceptance criteria:
 - Manual power smoke test records CPU delta, wake behavior, working set, and refresh cadence on battery while hidden to tray.
 
 ### v0.7.1 Enrichment Cache
+
+Status: implemented and verified.
 
 Add a cache for expensive or permission-sensitive metadata. The snapshot path should work with partial identity, and enrichment should add richer details opportunistically.
 
