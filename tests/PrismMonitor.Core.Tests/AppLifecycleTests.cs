@@ -89,6 +89,7 @@ public sealed class AppLifecycleTests
         Assert.IsFalse(app.Contains("NotificationTimer_Tick", StringComparison.Ordinal));
         Assert.AreEqual(1, host.Split("new DispatcherTimer", StringSplitOptions.None).Length - 1);
         StringAssert.Contains(host, "RefreshSchedulePolicy.GetRefreshInterval");
+        StringAssert.Contains(host, "await _coordinator.StopAsync()");
     }
 
     [TestMethod]

@@ -5,11 +5,13 @@ namespace PrismMonitor.Core.Monitoring;
 
 public sealed class MonitoringCoordinator
 {
+    private static readonly CancellationToken StoppedToken = new(canceled: true);
     private readonly IProcessSnapshotProvider _snapshotProvider;
     private readonly IProcessEnricher _processEnricher;
     private readonly ProcessSnapshotTracker _snapshotTracker;
     private readonly ProcessEnrichmentCache _enrichmentCache;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly CancellationTokenSource _shutdown = new();
     private readonly object _sync = new();
     private MonitoringConfiguration _configuration = MonitoringConfiguration.Default;
     private MonitoringSnapshot? _latestSnapshot;
@@ -23,6 +25,7 @@ public sealed class MonitoringCoordinator
     private long _totalCacheMisses;
     private long _totalCacheRetries;
     private long _totalCachePrunes;
+    private bool _isStopped;
 
     public MonitoringCoordinator(
         IProcessSnapshotProvider snapshotProvider,
@@ -83,6 +86,11 @@ public sealed class MonitoringCoordinator
         Task<MonitoringSnapshot> sharedTask;
         lock (_sync)
         {
+            if (_isStopped)
+            {
+                return Task.FromCanceled<MonitoringSnapshot>(StoppedToken);
+            }
+
             if (_runTask is null)
             {
                 _pendingRequest = request;
@@ -105,30 +113,74 @@ public sealed class MonitoringCoordinator
             : sharedTask;
     }
 
+    public async Task StopAsync()
+    {
+        Task<MonitoringSnapshot>? runTask;
+        bool shouldCancel;
+        lock (_sync)
+        {
+            shouldCancel = !_isStopped;
+            _isStopped = true;
+            runTask = _runTask;
+        }
+
+        if (shouldCancel)
+        {
+            _shutdown.Cancel();
+        }
+
+        if (runTask is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await runTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+        }
+    }
+
     private async Task<MonitoringSnapshot> RunLoopAsync()
     {
-        MonitoringSnapshot result;
-        while (true)
+        try
         {
-            MonitoringRefreshRequest request;
-            lock (_sync)
+            MonitoringSnapshot result;
+            while (true)
             {
-                request = _pendingRequest ?? MonitoringRefreshRequest.Periodic;
-                _pendingRequest = null;
-                _activeRequest = request;
+                MonitoringRefreshRequest request;
+                lock (_sync)
+                {
+                    request = _pendingRequest ?? MonitoringRefreshRequest.Periodic;
+                    _pendingRequest = null;
+                    _activeRequest = request;
+                }
+
+                result = await RunCycleAsync(request).ConfigureAwait(false);
+
+                lock (_sync)
+                {
+                    _activeRequest = null;
+                    if (_pendingRequest is null)
+                    {
+                        _runTask = null;
+                        return result;
+                    }
+                }
             }
-
-            result = await RunCycleAsync(request).ConfigureAwait(false);
-
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
             lock (_sync)
             {
                 _activeRequest = null;
-                if (_pendingRequest is null)
-                {
-                    _runTask = null;
-                    return result;
-                }
+                _pendingRequest = null;
+                _runTask = null;
             }
+
+            throw;
         }
     }
 
@@ -140,7 +192,11 @@ public sealed class MonitoringCoordinator
         long totalProviderCallCount = Interlocked.Increment(ref _totalProviderCallCount);
         try
         {
-            observations = await _snapshotProvider.CaptureAsync().ConfigureAwait(false);
+            observations = await _snapshotProvider.CaptureAsync(_shutdown.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {
@@ -193,7 +249,8 @@ public sealed class MonitoringCoordinator
                     snapshot,
                     enrichmentRequest,
                     startedAt,
-                    _processEnricher.EnrichAsync)
+                    _processEnricher.EnrichAsync,
+                    cancellationToken: _shutdown.Token)
                 .ConfigureAwait(false);
 
             if (lookup.IsCacheHit)

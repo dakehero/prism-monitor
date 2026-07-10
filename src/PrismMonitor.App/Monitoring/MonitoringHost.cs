@@ -102,11 +102,11 @@ internal sealed class MonitoringHost : IAsyncDisposable
         await RequestRefreshAsync(MonitoringRefreshReason.ConfigurationChanged);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_isDisposed)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         _isDisposed = true;
@@ -114,8 +114,14 @@ internal sealed class MonitoringHost : IAsyncDisposable
         _timer.Tick -= Timer_Tick;
         _powerStatusProvider.PowerSourceChanged -= PowerStatusProvider_PowerSourceChanged;
         _coordinator.SnapshotPublished -= Coordinator_SnapshotPublished;
-        _powerStatusProvider.Dispose();
-        return ValueTask.CompletedTask;
+        try
+        {
+            await _coordinator.StopAsync();
+        }
+        finally
+        {
+            _powerStatusProvider.Dispose();
+        }
     }
 
     private async Task LoadConfigurationAsync()
@@ -133,6 +139,9 @@ internal sealed class MonitoringHost : IAsyncDisposable
         try
         {
             await _coordinator.RequestRefreshAsync(new MonitoringRefreshRequest(reason, fullDetails));
+        }
+        catch (OperationCanceledException) when (_isDisposed)
+        {
         }
         catch (Exception exception)
         {

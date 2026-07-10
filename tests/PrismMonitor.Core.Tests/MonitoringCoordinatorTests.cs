@@ -143,6 +143,23 @@ public sealed class MonitoringCoordinatorTests
         Assert.AreEqual(1, coordinator.LastDiagnostics.CompatibleProcessCount);
     }
 
+    [TestMethod]
+    public async Task StopAsync_CancelsAndWaitsForActiveCapture()
+    {
+        CancellationAwareSnapshotProvider provider = new();
+        MonitoringCoordinator coordinator = CreateCoordinator(
+            provider,
+            new RecordingEnricher(Compatible));
+
+        Task<MonitoringSnapshot> refresh = coordinator.RequestRefreshAsync(MonitoringRefreshRequest.Periodic);
+        await provider.Started;
+
+        await coordinator.StopAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(async () => await refresh);
+        Assert.IsTrue(provider.CancellationObserved);
+    }
+
     private static MonitoringCoordinator CreateCoordinator(
         IProcessSnapshotProvider provider,
         IProcessEnricher enricher,
@@ -255,6 +272,31 @@ public sealed class MonitoringCoordinatorTests
         {
             Requests.Add(request);
             return Task.FromResult(handler(snapshot, request));
+        }
+    }
+
+    private sealed class CancellationAwareSnapshotProvider : IProcessSnapshotProvider
+    {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Started => _started.Task;
+
+        public bool CancellationObserved { get; private set; }
+
+        public async Task<IReadOnlyList<ProcessObservation>> CaptureAsync(
+            CancellationToken cancellationToken = default)
+        {
+            _started.SetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return [];
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                CancellationObserved = true;
+                throw;
+            }
         }
     }
 }
