@@ -301,8 +301,7 @@ public partial class App : Application
             MonitoringSnapshot snapshot = await Task.Run(ReadMonitoringSnapshotAsync);
 
             IReadOnlyList<LaunchHistoryEvent> historyEvents = _launchHistoryRecorder.CaptureNewEvents(
-                snapshot.HistoryProcesses,
-                DateTimeOffset.UtcNow);
+                snapshot.HistoryProcesses);
             foreach (LaunchHistoryEvent historyEvent in historyEvents)
             {
                 await _launchHistoryStore.AppendAsync(historyEvent);

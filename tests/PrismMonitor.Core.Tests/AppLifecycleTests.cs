@@ -35,6 +35,29 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(app, "OpenNotificationTargetAsync");
     }
 
+    [TestMethod]
+    public void WindowsProcessProviderDelegatesToSeparateSnapshotAndEnrichmentAdapters()
+    {
+        string bridgePath = FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "Processes",
+            "Win32ProcessInfoProvider.cs"));
+        string processesDirectory = Path.GetDirectoryName(bridgePath)!;
+        string snapshotProviderPath = Path.Combine(processesDirectory, "Win32ProcessSnapshotProvider.cs");
+        string enricherPath = Path.Combine(processesDirectory, "Win32ProcessEnricher.cs");
+
+        Assert.IsTrue(File.Exists(snapshotProviderPath));
+        Assert.IsTrue(File.Exists(enricherPath));
+        StringAssert.Contains(File.ReadAllText(snapshotProviderPath), "Task.Run");
+        StringAssert.Contains(File.ReadAllText(enricherPath), "Task.Run");
+
+        string bridge = File.ReadAllText(bridgePath);
+        StringAssert.Contains(bridge, "Win32ProcessSnapshotProvider");
+        StringAssert.Contains(bridge, "Win32ProcessEnricher");
+        Assert.IsFalse(bridge.Contains("Process.GetProcesses()", StringComparison.Ordinal));
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
