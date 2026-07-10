@@ -2,27 +2,35 @@ namespace PrismMonitor.Core.Processes;
 
 public sealed class CompatibilityProcessNotifier
 {
-    private HashSet<int> _knownProcessIds = [];
+    private HashSet<ProcessInstanceKey> _knownInstances = [];
     private bool _hasBaseline;
 
     public IReadOnlyList<CompatibilityProcessInfo> CaptureNewProcesses(IReadOnlyList<CompatibilityProcessInfo> currentProcesses)
     {
-        HashSet<int> currentProcessIds = currentProcesses
-            .Select(process => process.ProcessId)
+        HashSet<ProcessInstanceKey> currentInstances = currentProcesses
+            .Select(GetInstanceKey)
             .ToHashSet();
 
         if (!_hasBaseline)
         {
-            _knownProcessIds = currentProcessIds;
+            _knownInstances = currentInstances;
             _hasBaseline = true;
             return [];
         }
 
         List<CompatibilityProcessInfo> newProcesses = currentProcesses
-            .Where(process => !_knownProcessIds.Contains(process.ProcessId))
+            .Where(process => !_knownInstances.Contains(GetInstanceKey(process)))
             .ToList();
 
-        _knownProcessIds = currentProcessIds;
+        _knownInstances = currentInstances;
         return newProcesses;
+    }
+
+    private static ProcessInstanceKey GetInstanceKey(CompatibilityProcessInfo process)
+    {
+        return process.InstanceKey ?? new ProcessInstanceKey(
+            process.ProcessId,
+            process.DetectedAt ?? process.CreationTime ?? DateTimeOffset.MinValue,
+            process.CreationTime is not null);
     }
 }

@@ -37,6 +37,24 @@ public sealed class LaunchHistoryStoreTests
     }
 
     [TestMethod]
+    public async Task AppendRangeAsync_WritesOneCycleAsJsonlAndUpdatesSummary()
+    {
+        LaunchHistoryStore store = CreateStore();
+        DateTimeOffset now = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+
+        await store.AppendRangeAsync(
+        [
+            new LaunchHistoryEvent("One", "x64", 100, null, now.AddSeconds(-1), now),
+            new LaunchHistoryEvent("Two", "x86", 101, null, now.AddSeconds(-1), now)
+        ]);
+
+        string eventsPath = Path.Combine(_temporaryDirectory!, "launch-events.jsonl");
+        IReadOnlyList<LaunchHistorySummary> summaries = await store.GetSummaryAsync(now.AddMinutes(1), []);
+        Assert.HasCount(2, File.ReadAllLines(eventsPath));
+        Assert.HasCount(2, summaries);
+    }
+
+    [TestMethod]
     public async Task GetSummaryAsync_PrunesEventsOlderThanThirtyDays()
     {
         LaunchHistoryStore store = CreateStore();

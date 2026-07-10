@@ -71,4 +71,36 @@ public sealed class CompatibilityProcessNotifierTests
 
         CollectionAssert.AreEqual(new[] { 20 }, result.Select(process => process.ProcessId).ToArray());
     }
+
+    [TestMethod]
+    public void CaptureNewProcesses_TreatsReusedPidWithNewInstanceKeyAsNew()
+    {
+        CompatibilityProcessNotifier notifier = new();
+        DateTimeOffset firstCreation = DateTimeOffset.UnixEpoch;
+        DateTimeOffset reusedCreation = firstCreation.AddMinutes(1);
+        _ = notifier.CaptureNewProcesses(
+        [
+            Process(20, firstCreation)
+        ]);
+
+        IReadOnlyList<CompatibilityProcessInfo> result = notifier.CaptureNewProcesses(
+        [
+            Process(20, reusedCreation)
+        ]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(reusedCreation, result[0].InstanceKey!.Value.IdentityTime);
+    }
+
+    private static CompatibilityProcessInfo Process(int processId, DateTimeOffset creationTime)
+    {
+        return new CompatibilityProcessInfo(
+            "tool",
+            processId,
+            "x64",
+            TimeSpan.Zero,
+            CreationTime: creationTime,
+            DetectedAt: creationTime.AddSeconds(1),
+            InstanceKey: new ProcessInstanceKey(processId, creationTime, IsCreationTimeVerified: true));
+    }
 }
