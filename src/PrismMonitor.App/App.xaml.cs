@@ -19,7 +19,6 @@ namespace PrismMonitor.App;
 
 public partial class App : Application
 {
-    private readonly CompatibilityProcessService _processService = new(new Win32ProcessInfoProvider());
     private readonly IgnoredProcessStore _ignoredProcessStore = new(Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PrismMonitor",
@@ -49,6 +48,7 @@ public partial class App : Application
     private ShellTrayIcon? _trayIcon;
     private CompatibilityProcessToastService? _toastService;
     private MonitoringHost? _monitoringHost;
+    private bool _isMainWindowVisible;
 
     public App()
     {
@@ -109,10 +109,14 @@ public partial class App : Application
     {
         MainWindow window = EnsureMainWindow();
 
+        _isMainWindowVisible = true;
         _monitoringHost?.SetMainWindowVisible(true);
         window.ShowMainWindow();
         window.Activate();
-        ScheduleRefreshProcessWindow(window);
+        if (_monitoringHost?.LatestSnapshot is MonitoringSnapshot snapshot)
+        {
+            _ = window.ApplyMonitoringSnapshotAsync(snapshot);
+        }
     }
 
     private async void ExitApplication()
@@ -160,20 +164,28 @@ public partial class App : Application
         }
 
         _window = new MainWindow(
-            _processService,
             _ignoredProcessStore,
             _settingsStore,
             _launchHistoryStore);
+        _window.RefreshRequested += MainWindow_RefreshRequested;
+        _window.ConfigurationChanged += MainWindow_ConfigurationChanged;
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) =>
         {
             _windowLifetime.MarkHiddenToTray();
+            _isMainWindowVisible = false;
             _monitoringHost?.SetMainWindowVisible(false);
         };
         _window.Closed += (_, _) =>
         {
             _windowLifetime.MarkWindowClosed();
+            _isMainWindowVisible = false;
             _monitoringHost?.SetMainWindowVisible(false);
+            if (_window is not null)
+            {
+                _window.RefreshRequested -= MainWindow_RefreshRequested;
+                _window.ConfigurationChanged -= MainWindow_ConfigurationChanged;
+            }
             if (_windowLifetime.NeedsWindow)
             {
                 _window = null;
@@ -183,20 +195,21 @@ public partial class App : Application
         return _window;
     }
 
-    private static void ScheduleRefreshProcessWindow(MainWindow window)
+    private void MainWindow_RefreshRequested(object? sender, EventArgs e)
     {
-        _ = window.DispatcherQueue.TryEnqueue(async () => await RefreshProcessWindowAsync(window));
+        if (_monitoringHost is not null)
+        {
+            _ = _monitoringHost.RequestRefreshAsync(
+                MonitoringRefreshReason.Manual,
+                fullDetails: true);
+        }
     }
 
-    private static async Task RefreshProcessWindowAsync(MainWindow window)
+    private void MainWindow_ConfigurationChanged(object? sender, EventArgs e)
     {
-        try
+        if (_monitoringHost is not null)
         {
-            await window.RefreshAsync();
-        }
-        catch
-        {
-            // The temporary MainWindow pull bridge is removed in the shared-feed task.
+            _ = _monitoringHost.ReloadConfigurationAsync();
         }
     }
 
@@ -263,6 +276,7 @@ public partial class App : Application
     {
         MainWindow window = EnsureMainWindow();
 
+        _isMainWindowVisible = true;
         _monitoringHost?.SetMainWindowVisible(true);
         window.ShowMainWindow();
         window.Activate();
@@ -306,6 +320,7 @@ public partial class App : Application
         Task historyWrite = TryRecordHistoryAsync(snapshot.HistoryProcesses);
         TryUpdateTray(snapshot.TrayProcesses);
         TryNotify(snapshot.NotifiableProcesses);
+        TryUpdateMainWindow(snapshot);
         await historyWrite;
     }
 
@@ -348,5 +363,15 @@ public partial class App : Application
         {
             StartupDiagnostics.Write("App.Notify", exception);
         }
+    }
+
+    private void TryUpdateMainWindow(MonitoringSnapshot snapshot)
+    {
+        if (!_isMainWindowVisible || _window is null)
+        {
+            return;
+        }
+
+        _ = _window.ApplyMonitoringSnapshotAsync(snapshot);
     }
 }

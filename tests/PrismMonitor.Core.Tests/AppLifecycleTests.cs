@@ -79,6 +79,22 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(host, "RefreshSchedulePolicy.GetRefreshInterval");
     }
 
+    [TestMethod]
+    public void MainWindowConsumesSnapshotsWithoutOwningProcessTimerOrService()
+    {
+        string source = File.ReadAllText(FindRepoFile(Path.Combine(
+            "src",
+            "PrismMonitor.App",
+            "MainWindow.xaml.cs")));
+
+        Assert.IsFalse(source.Contains("CompatibilityProcessService", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("_refreshTimer", StringComparison.Ordinal));
+        Assert.IsFalse(source.Contains("RefreshTimer_Tick", StringComparison.Ordinal));
+        StringAssert.Contains(source, "ApplyMonitoringSnapshotAsync");
+        StringAssert.Contains(source, "RefreshRequested");
+        StringAssert.Contains(source, "ConfigurationChanged");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
