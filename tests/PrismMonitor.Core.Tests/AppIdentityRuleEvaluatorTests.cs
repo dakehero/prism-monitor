@@ -88,6 +88,22 @@ public sealed class AppIdentityRuleEvaluatorTests
     }
 
     [TestMethod]
+    public void IsSuppressed_DoesNotMatchArchitectureOnlyRules()
+    {
+        AppIdentityRule rule = new(
+            "Architecture only",
+            Architecture: "x64",
+            Targets: SuppressionTarget.All);
+
+        bool result = AppIdentityRuleEvaluator.IsSuppressed(
+            new AppIdentity("AnyApp", Architecture: "x64"),
+            [rule],
+            SuppressionTarget.Processes);
+
+        Assert.IsFalse(result);
+    }
+
+    [TestMethod]
     public void FilterProcesses_CarriesPackageAndPublisherIdentity()
     {
         AppIdentityRule packageRule = new(

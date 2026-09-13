@@ -2,13 +2,20 @@
 
 Prism Monitor is a Windows ARM64 WinUI 3 tray app for observing desktop processes running in Windows compatibility mode. Keep repository-facing docs in English unless the user asks otherwise; chat with the user in Chinese by default.
 
+## Maintenance Mode
+
+- Iterate on reproducible bugs, Windows compatibility changes, measured power regressions, broken builds, or explicit user requests. Do not invent recurring work or expand the roadmap to keep busy.
+- Keep fixes scoped, verify them, commit and push, and open or update a PR for review. Merging, tagging, publishing releases, and Store submission require user authorization.
+- Preserve signing and package identity. Ask before adding dependencies, telemetry, services, or new background work.
+- Treat source implementation, runtime verification, mainline integration, and publication as separate states. Do not mark an unverified or unpublished milestone released.
+
 ## Product Constraints
 
 - Use Windows/system process data only. Do not add CPU sampling loops.
 - Keep background monitoring power-aware, especially while hidden to tray or on battery.
 - Use neutral wording such as "compatibility-mode" or "emulated".
 - Keep tray UI lightweight: summary tooltip, dynamic right-click menu, and fast left-click access to the main window.
-- The main window is the place for details, history, filters, settings, and destructive actions.
+- The main window is the place for details, history, rules, settings, and destructive actions.
 - Closing the main window hides it to tray; right-click tray opens a menu; Exit belongs in that menu.
 
 ## Implementation Notes
@@ -18,6 +25,8 @@ Prism Monitor is a Windows ARM64 WinUI 3 tray app for observing desktop processe
 - Prefer .NET / WinRT / Windows App SDK APIs when practical. Use narrow Win32 interop when Windows has no suitable managed or WinRT API.
 - Preserve ARM64EC/ARM64X handling. `IsWow64Process2` alone is not enough for every architecture case already discussed in this project.
 - Persist ignore rules and history in app-local data so normal updates do not forget user choices.
+- MonitoringHost owns refresh scheduling; UI and rule changes request updates through it. Preserve the shared snapshot feed, enrichment cache, and power-aware cadence.
+- Windows owns sign-in startup state; do not mirror it into settings.json or override a user-disabled startup task.
 
 ## UI Review Rule
 
@@ -44,7 +53,7 @@ dotnet build src/PrismMonitor.App/PrismMonitor.App.csproj --configuration Releas
 For local MSIX smoke tests, use the generated package plus:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-local-msix.ps1 -PackageDir "<package-dir>" -Launch
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/install-local-msix.ps1 -PackageDir "<package-dir>" -Launch
 ```
 
 Known context: local packages are self-signed; generated MSIX artifacts should not be committed; existing Windows SDK trim warnings are expected unless a change specifically removes them.

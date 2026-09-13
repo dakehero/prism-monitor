@@ -7,11 +7,15 @@ Prism Monitor is a Windows ARM64 tray app for spotting compatibility-mode deskto
 - WinUI 3 tray application
 - Native AOT `win-arm64` publish
 - Lists compatibility-mode processes with cumulative CPU time
-- Tooltip shows Top 5 compatibility-mode processes by name and architecture
+- Tray tooltip summarizes compatible processes; the right-click menu shows top processes
 - Main window shows process icons and supports ending or ignoring a process
-- Ignore rules are persisted locally and apply to the main window, tooltip, and Toast notifications
+- App identity rules persist locally, with separate targets for Processes, History, Tray, and Toast
+- Launch history retains observed starts for 30 days
 - Toast notification for newly detected compatibility-mode processes, with quick actions to end or ignore
+- Optional Windows sign-in startup, controlled from Settings and managed by Windows Startup Apps
 - Uses public Windows APIs and avoids CPU sampling
+
+This README describes the development branch. The latest GitHub release is [v0.7.1](https://github.com/dakehero/prism-monitor/releases/tag/v0.7.1); Rules workflow improvements and sign-in startup are pending in the **v0.8.0** candidate. See the [roadmap and remaining release checks](docs/ROADMAP.md).
 
 ## Install
 
@@ -42,15 +46,16 @@ Run Prism Monitor from Start or another interactive Windows shell. The app start
 
 - Left-click the tray icon to show the process list.
 - Right-click the tray icon to open the tray menu, then choose `Exit`.
-- Use the main window to end a process or add/remove ignored process names.
+- Use Processes or History to ignore an app, and Rules to edit suppression targets or remove rules.
+- Use Settings to choose whether Prism Monitor starts in the tray after you sign in.
 
 ## Development MSIX package
 
-Release builds also publish a signed MSIX package for Windows ARM64. Development packages use a self-signed certificate, so use the generated `Install.ps1` script from the release zip only when testing local or GitHub release builds.
+The packaging workflow produces a signed MSIX for Windows ARM64. A local build or `dotnet publish` alone does not publish a GitHub release or submit to the Store. Development packages use a self-signed certificate; use the generated `Install.ps1` from a test release zip.
 
 After installation, launch Prism Monitor from Start or another interactive Windows shell. The app runs without elevation by default.
 
-The v0.6.x releases cover process icons, termination, no-flicker refresh, ignore rules, Toast notifications, and launch history.
+The v0.7 baseline adds shared monitoring and cached process enrichment. On battery, refresh slows to 10 seconds while the main window is visible and 30 seconds while hidden, with interaction-triggered refreshes.
 
 ## License
 

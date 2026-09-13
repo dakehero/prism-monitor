@@ -13,23 +13,24 @@ public static class AppIdentityRuleEvaluator
     internal static bool MatchesIdentity(AppIdentity identity, AppIdentityRule rule)
     {
         bool hasMatchField = false;
+        bool hasPrimaryMatchField = false;
 
-        if (!MatchesOptionalProcessName(rule.ProcessName, identity.ProcessName, ref hasMatchField))
+        if (!MatchesOptionalProcessName(rule.ProcessName, identity.ProcessName, ref hasPrimaryMatchField))
         {
             return false;
         }
 
-        if (!MatchesOptionalString(rule.ExecutablePath, identity.ExecutablePath, ref hasMatchField))
+        if (!MatchesOptionalString(rule.ExecutablePath, identity.ExecutablePath, ref hasPrimaryMatchField))
         {
             return false;
         }
 
-        if (!MatchesOptionalString(rule.PackageIdentity, identity.PackageIdentity, ref hasMatchField))
+        if (!MatchesOptionalString(rule.PackageIdentity, identity.PackageIdentity, ref hasPrimaryMatchField))
         {
             return false;
         }
 
-        if (!MatchesOptionalString(rule.PublisherIdentity, identity.PublisherIdentity, ref hasMatchField))
+        if (!MatchesOptionalString(rule.PublisherIdentity, identity.PublisherIdentity, ref hasPrimaryMatchField))
         {
             return false;
         }
@@ -39,7 +40,7 @@ public static class AppIdentityRuleEvaluator
             return false;
         }
 
-        return hasMatchField;
+        return hasPrimaryMatchField;
     }
 
     private static bool MatchesTarget(AppIdentityRule rule, SuppressionTarget target)

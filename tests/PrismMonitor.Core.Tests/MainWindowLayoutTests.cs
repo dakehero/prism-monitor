@@ -30,11 +30,11 @@ public sealed class MainWindowLayoutTests
 
         StringAssert.Contains(xaml, "x:Name=\"ProcessListView\"");
         StringAssert.Contains(xaml, "x:Name=\"HistoryListView\"");
-        StringAssert.Contains(xaml, "x:Name=\"FilterListView\"");
+        StringAssert.Contains(xaml, "x:Name=\"RuleListView\"");
         Assert.IsGreaterThanOrEqualTo(
             CountOccurrences(xaml, "ScrollViewer.VerticalScrollBarVisibility=\"Auto\""),
             3,
-            "Process, history, and filter lists should explicitly expose vertical scrollbars.");
+            "Process, history, and rule lists should explicitly expose vertical scrollbars.");
     }
 
     [TestMethod]
@@ -87,9 +87,9 @@ public sealed class MainWindowLayoutTests
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
 
         string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
-        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
-        string filtersPage = SliceBetween(xaml, "x:Name=\"FiltersPage\"", "x:Name=\"SettingsPage\"");
-        string filterList = SliceBetween(xaml, "x:Name=\"FilterListView\"", "x:Name=\"SettingsPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"RulesPage\"");
+        string rulesPage = SliceBetween(xaml, "x:Name=\"RulesPage\"", "x:Name=\"SettingsPage\"");
+        string ruleList = SliceBetween(xaml, "x:Name=\"RuleListView\"", "x:Name=\"SettingsPage\"");
 
         Assert.IsFalse(
             processList.Contains("<ListView.Header>", StringComparison.Ordinal),
@@ -107,28 +107,55 @@ public sealed class MainWindowLayoutTests
             6,
             CountOccurrences(historyList, "TextAlignment=\"Left\""),
             "History list detail text should explicitly align text to the left.");
-        StringAssert.Contains(filterList, "TextAlignment=\"Left\"");
-        StringAssert.Contains(filtersPage, "x:Name=\"FiltersHeading\"");
-        StringAssert.Contains(filtersPage, "TextAlignment=\"Left\"");
+        StringAssert.Contains(ruleList, "TextAlignment=\"Left\"");
+        StringAssert.Contains(rulesPage, "x:Name=\"RulesHeading\"");
+        StringAssert.Contains(rulesPage, "TextAlignment=\"Left\"");
         Assert.IsGreaterThanOrEqualTo(
             3,
             CountOccurrences(xaml, "<Setter Property=\"HorizontalContentAlignment\" Value=\"Stretch\" />"),
-            "Process, history, and filter list rows should stretch so left-aligned text starts at the column edge.");
+            "Process, history, and rule list rows should stretch so left-aligned text starts at the column edge.");
     }
 
     [TestMethod]
-    public void FiltersPageDoesNotRepeatIgnoredAppsHeading()
+    public void RulesPageUsesFirstClassRulePresentation()
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
-        string filtersPage = SliceBetween(xaml, "x:Name=\"FiltersPage\"", "x:Name=\"SettingsPage\"");
+        string rulesPage = SliceBetween(xaml, "x:Name=\"RulesPage\"", "x:Name=\"SettingsPage\"");
 
-        Assert.AreEqual(
-            1,
-            CountOccurrences(filtersPage, "Text=\"Ignored apps\""),
-            "Filters should show one page heading instead of repeating the same label above the list.");
+        StringAssert.Contains(xaml, "Content=\"Rules\"");
+        StringAssert.Contains(rulesPage, "x:Name=\"RulesHeading\"");
+        StringAssert.Contains(rulesPage, "Text=\"App rules\"");
+        StringAssert.Contains(rulesPage, "x:Name=\"RuleListView\"");
+        StringAssert.Contains(rulesPage, "x:Name=\"RuleTargetComboBox\"");
+        StringAssert.Contains(rulesPage, "SelectedValuePath=\"Tag\"");
+        StringAssert.Contains(rulesPage, "Tag=\"All\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Tag=\"History\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Toast\"");
+        StringAssert.Contains(rulesPage, "Text=\"{x:Bind DisplayName, Mode=OneWay}\"");
+        StringAssert.Contains(rulesPage, "Text=\"{x:Bind MatchSummary, Mode=OneWay}\"");
+        StringAssert.Contains(rulesPage, "Text=\"{x:Bind TargetsText, Mode=OneWay}\"");
+        StringAssert.Contains(rulesPage, "Content=\"Change target\"");
+        StringAssert.Contains(rulesPage, "Click=\"UpdateRuleTargetMenuItem_Click\"");
+        StringAssert.Contains(rulesPage, "Text=\"All surfaces\"");
+        StringAssert.Contains(rulesPage, "Text=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Text=\"History\"");
+        StringAssert.Contains(rulesPage, "Text=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Text=\"Toast\"");
+        StringAssert.Contains(rulesPage, "Tag=\"All\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Processes\"");
+        StringAssert.Contains(rulesPage, "Tag=\"History\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Tray\"");
+        StringAssert.Contains(rulesPage, "Tag=\"Toast\"");
+        StringAssert.Contains(rulesPage, "Click=\"RemoveRuleButton_Click\"");
+        StringAssert.Contains(rulesPage, "<ColumnDefinition Width=\"*\" MinWidth=\"0\" />");
+        StringAssert.Contains(rulesPage, "TextWrapping=\"WrapWholeWords\"");
+        StringAssert.Contains(rulesPage, "VerticalAlignment=\"Center\"");
         Assert.IsFalse(
-            filtersPage.Contains("<ListView.Header>", StringComparison.Ordinal),
-            "Filters should avoid a redundant list header when the page heading already names the content.");
+            xaml.Contains("x:Name=\"FiltersPage\"", StringComparison.Ordinal)
+                || xaml.Contains("x:Name=\"FilterListView\"", StringComparison.Ordinal),
+            "The legacy Filters page should become a first-class Rules page.");
     }
 
     [TestMethod]
@@ -137,7 +164,7 @@ public sealed class MainWindowLayoutTests
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
 
         string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
-        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"RulesPage\"");
 
         Assert.IsGreaterThanOrEqualTo(
             2,
@@ -168,7 +195,7 @@ public sealed class MainWindowLayoutTests
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
 
         string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
-        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"RulesPage\"");
 
         StringAssert.Contains(xaml, "x:Name=\"ProcessHeader\"");
         StringAssert.Contains(xaml, "x:Name=\"HistoryHeader\"");
@@ -196,7 +223,7 @@ public sealed class MainWindowLayoutTests
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
 
         string processList = SliceBetween(xaml, "x:Name=\"ProcessListView\"", "x:Name=\"HistoryPage\"");
-        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"FiltersPage\"");
+        string historyList = SliceBetween(xaml, "x:Name=\"HistoryListView\"", "x:Name=\"RulesPage\"");
 
         Assert.IsFalse(
             xaml.Contains("x:Key=\"DetailsPanelStyle\"", StringComparison.Ordinal),
@@ -218,6 +245,10 @@ public sealed class MainWindowLayoutTests
         StringAssert.Contains(historyList, "x:Name=\"CopyHistoryProcessIdGlyph\"");
         StringAssert.Contains(processList, "x:Name=\"EndProcessButton\"");
         StringAssert.Contains(processList, "x:Name=\"IgnoreProcessButton\"");
+        StringAssert.Contains(processList, "Content=\"Ignore app\"");
+        StringAssert.Contains(historyList, "x:Name=\"IgnoreHistoryAppButton\"");
+        StringAssert.Contains(historyList, "Content=\"Ignore app\"");
+        StringAssert.Contains(historyList, "Click=\"IgnoreHistoryAppButton_Click\"");
     }
 
     [TestMethod]
@@ -228,7 +259,7 @@ public sealed class MainWindowLayoutTests
         Assert.IsGreaterThanOrEqualTo(
             3,
             CountOccurrences(xaml, "<Setter Property=\"Padding\" Value=\"0\" />"),
-            "Process, history, and filter list rows should remove ListViewItem default padding so headers and content share the same column origin.");
+            "Process, history, and rule list rows should remove ListViewItem default padding so headers and content share the same column origin.");
     }
 
     [TestMethod]
@@ -236,7 +267,7 @@ public sealed class MainWindowLayoutTests
     {
         string xaml = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml")));
         string code = File.ReadAllText(FindRepoFile(Path.Combine("src", "PrismMonitor.App", "MainWindow.xaml.cs")));
-        string historyPage = SliceBetween(xaml, "x:Name=\"HistoryPage\"", "x:Name=\"FiltersPage\"");
+        string historyPage = SliceBetween(xaml, "x:Name=\"HistoryPage\"", "x:Name=\"RulesPage\"");
 
         StringAssert.Contains(historyPage, "Tag=\"All\"");
         StringAssert.Contains(historyPage, "Tag=\"x86\"");

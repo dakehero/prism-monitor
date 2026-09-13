@@ -28,6 +28,77 @@ public sealed class IgnoredProcessStore(string filePath)
         return _ruleStore.GetRulesAsync(cancellationToken);
     }
 
+    public async Task AddRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _ruleStore.AddOrUpdateRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task RemoveRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (IsLegacyNameRule(rule))
+            {
+                await _ruleStore.RemoveProcessNameRuleAsync(rule.ProcessName!, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await _ruleStore.RemoveRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            }
+
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task UpdateRuleTargetsAsync(
+        AppIdentityRule rule,
+        SuppressionTarget targets,
+        CancellationToken cancellationToken = default)
+    {
+        if (targets == SuppressionTarget.None)
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (IsLegacyNameRule(rule))
+            {
+                await _ruleStore.RemoveProcessNameRuleAsync(rule.ProcessName!, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await _ruleStore.RemoveRuleAsync(rule, cancellationToken).ConfigureAwait(false);
+            }
+
+            await _ruleStore.AddOrUpdateRuleAsync(rule with { Targets = targets }, cancellationToken).ConfigureAwait(false);
+
+            IReadOnlyList<string> names = await GetIgnoredNamesAsync(cancellationToken).ConfigureAwait(false);
+            await WriteNamesAsync(names, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task AddAsync(string processName, CancellationToken cancellationToken = default)
     {
         string normalizedName = IgnoredProcessFilter.NormalizeName(processName);
@@ -97,6 +168,16 @@ public sealed class IgnoredProcessStore(string filePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private static bool IsLegacyNameRule(AppIdentityRule rule)
+    {
+        return rule.Targets == SuppressionTarget.All
+            && !string.IsNullOrWhiteSpace(rule.ProcessName)
+            && string.IsNullOrWhiteSpace(rule.ExecutablePath)
+            && string.IsNullOrWhiteSpace(rule.PackageIdentity)
+            && string.IsNullOrWhiteSpace(rule.PublisherIdentity)
+            && string.IsNullOrWhiteSpace(rule.Architecture);
     }
 }
 

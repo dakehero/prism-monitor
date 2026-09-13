@@ -20,6 +20,52 @@ public sealed class AppIdentityRuleStore(string rulesFilePath, string? legacyIgn
         }
     }
 
+    public async Task AddOrUpdateRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        AppIdentityRule normalizedRule = NormalizeRule(rule);
+        if (!HasAnyMatchField(normalizedRule) || normalizedRule.Targets == SuppressionTarget.None)
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<AppIdentityRule> rules = await ReadRulesOrMigrateAsync(cancellationToken).ConfigureAwait(false);
+            string ruleKey = GetRuleKey(normalizedRule);
+            rules.RemoveAll(existingRule => string.Equals(GetRuleKey(existingRule), ruleKey, StringComparison.OrdinalIgnoreCase));
+            rules.Add(normalizedRule);
+
+            await WriteRulesAsync(NormalizeAndSort(rules), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    public async Task RemoveRuleAsync(AppIdentityRule rule, CancellationToken cancellationToken = default)
+    {
+        AppIdentityRule normalizedRule = NormalizeRule(rule);
+        if (!HasAnyMatchField(normalizedRule))
+        {
+            return;
+        }
+
+        string ruleKey = GetRuleKey(normalizedRule);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<AppIdentityRule> rules = await ReadRulesOrMigrateAsync(cancellationToken).ConfigureAwait(false);
+            rules.RemoveAll(existingRule => string.Equals(GetRuleKey(existingRule), ruleKey, StringComparison.OrdinalIgnoreCase));
+            await WriteRulesAsync(NormalizeAndSort(rules), cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public async Task AddProcessNameRuleAsync(
         string processName,
         SuppressionTarget targets,
@@ -74,6 +120,36 @@ public sealed class AppIdentityRuleStore(string rulesFilePath, string? legacyIgn
         {
             _gate.Release();
         }
+    }
+
+    public static AppIdentityRule CreateRuleForIdentity(AppIdentity identity, SuppressionTarget targets)
+    {
+        string displayName = AppIdentityRuleNormalizer.NormalizeValue(identity.ProcessName);
+        string? packageIdentity = ToNullable(AppIdentityRuleNormalizer.NormalizeValue(identity.PackageIdentity));
+        string? executablePath = packageIdentity is null
+            ? ToNullable(AppIdentityRuleNormalizer.NormalizeValue(identity.ExecutablePath))
+            : null;
+        string? publisherIdentity = packageIdentity is null && executablePath is null
+            ? ToNullable(AppIdentityRuleNormalizer.NormalizeValue(identity.PublisherIdentity))
+            : null;
+        string? processName = packageIdentity is null && executablePath is null && publisherIdentity is null
+            ? ToNullable(AppIdentityRuleNormalizer.NormalizeProcessName(identity.ProcessName))
+            : null;
+        string? architecture = packageIdentity is not null
+            || executablePath is not null
+            || publisherIdentity is not null
+            || processName is not null
+                ? ToNullable(AppIdentityRuleNormalizer.NormalizeValue(identity.Architecture))
+                : null;
+
+        return new AppIdentityRule(
+            displayName.Length > 0 ? displayName : "App identity rule",
+            ProcessName: processName,
+            ExecutablePath: executablePath,
+            PackageIdentity: packageIdentity,
+            PublisherIdentity: publisherIdentity,
+            Architecture: architecture,
+            Targets: targets);
     }
 
     private async Task<List<AppIdentityRule>> ReadRulesOrMigrateAsync(CancellationToken cancellationToken)
@@ -257,8 +333,7 @@ public sealed class AppIdentityRuleStore(string rulesFilePath, string? legacyIgn
         return !string.IsNullOrWhiteSpace(rule.ProcessName)
             || !string.IsNullOrWhiteSpace(rule.ExecutablePath)
             || !string.IsNullOrWhiteSpace(rule.PackageIdentity)
-            || !string.IsNullOrWhiteSpace(rule.PublisherIdentity)
-            || !string.IsNullOrWhiteSpace(rule.Architecture);
+            || !string.IsNullOrWhiteSpace(rule.PublisherIdentity);
     }
 
     private static bool IsSameProcessNameRule(AppIdentityRule rule, string processName, SuppressionTarget targets)

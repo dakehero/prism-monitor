@@ -97,8 +97,8 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
-                    Content="Filters"
-                    Tag="Filters">
+                    Content="Rules"
+                    Tag="Rules">
                     <NavigationViewItem.Icon>
                         <SymbolIcon Symbol="Filter" />
                     </NavigationViewItem.Icon>
@@ -261,7 +261,7 @@
                                                         <Button
                                                             x:Name="IgnoreProcessButton"
                                                             Click="IgnoreProcessMenuItem_Click"
-                                                            Content="Ignore"
+                                                            Content="Ignore app"
                                                             Tag="{x:Bind}"
                                                             ToolTipService.ToolTip="Ignore process" />
                                                     </StackPanel>
@@ -473,6 +473,13 @@
                                                         TextWrapping="Wrap"
                                                         ToolTipService.ToolTip="{x:Bind ExecutablePath, Mode=OneWay}" />
                                                 </Grid>
+                                                <Button
+                                                    x:Name="IgnoreHistoryAppButton"
+                                                    HorizontalAlignment="Left"
+                                                    Click="IgnoreHistoryAppButton_Click"
+                                                    Content="Ignore app"
+                                                    Tag="{x:Bind}"
+                                                    ToolTipService.ToolTip="Ignore app" />
                                         </StackPanel>
                                     </Expander>
                                 </Border>
@@ -482,7 +489,7 @@
                 </Grid>
 
                 <Grid
-                    x:Name="FiltersPage"
+                    x:Name="RulesPage"
                     RowSpacing="16"
                     Visibility="Collapsed">
                         <Grid.RowDefinitions>
@@ -492,26 +499,39 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock
-                            x:Name="FiltersHeading"
+                            x:Name="RulesHeading"
                             HorizontalAlignment="Left"
                             FontSize="18"
                             FontWeight="SemiBold"
-                            Text="Ignored apps"
+                            Text="App rules"
                             TextAlignment="Left" />
 
                         <Grid Grid.Row="1" ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="280" />
+                                <ColumnDefinition Width="156" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBox x:Name="IgnoreNameTextBox" PlaceholderText="Process name to ignore" />
-                            <Button Grid.Column="1" Click="AddIgnoredButton_Click" Content="Add ignored app" />
+                            <TextBox x:Name="RuleNameTextBox" PlaceholderText="Process name rule" />
+                            <ComboBox
+                                x:Name="RuleTargetComboBox"
+                                Grid.Column="1"
+                                SelectedIndex="0"
+                                SelectedValuePath="Tag"
+                                x:SuppressXamlTrimWarnings="True">
+                                <ComboBoxItem Content="All surfaces" Tag="All" />
+                                <ComboBoxItem Content="Processes" Tag="Processes" />
+                                <ComboBoxItem Content="History" Tag="History" />
+                                <ComboBoxItem Content="Tray" Tag="Tray" />
+                                <ComboBoxItem Content="Toast" Tag="Toast" />
+                            </ComboBox>
+                            <Button Grid.Column="2" Click="AddRuleButton_Click" Content="Add rule" />
                         </Grid>
 
                         <ListView
-                            x:Name="FilterListView"
+                            x:Name="RuleListView"
                             Grid.Row="2"
-                            ItemsSource="{x:Bind FilterRows, Mode=OneWay}"
+                            ItemsSource="{x:Bind RuleRows, Mode=OneWay}"
                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                             ScrollViewer.HorizontalScrollMode="Disabled"
                             ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -524,15 +544,77 @@
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="local:FilterRow">
+                                <DataTemplate x:DataType="local:RuleRow">
                                     <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
-                                        <Grid Padding="8,6" ColumnSpacing="8">
+                                        <Grid Padding="8,8" ColumnSpacing="12">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" MinWidth="0" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="{x:Bind Name, Mode=OneTime}" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
-                                            <Button Grid.Column="1" HorizontalAlignment="Left" Click="RemoveIgnoredButton_Click" Content="Remove" Tag="{x:Bind Name, Mode=OneTime}" />
+                                            <StackPanel
+                                                MinWidth="0"
+                                                HorizontalAlignment="Stretch"
+                                                Spacing="2">
+                                                <TextBlock
+                                                    HorizontalAlignment="Left"
+                                                    FontWeight="SemiBold"
+                                                    Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextTrimming="CharacterEllipsis" />
+                                                <TextBlock
+                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                    MaxLines="2"
+                                                    Text="{x:Bind MatchSummary, Mode=OneWay}"
+                                                    TextAlignment="Left"
+                                                    TextTrimming="CharacterEllipsis"
+                                                    TextWrapping="WrapWholeWords" />
+                                                <TextBlock
+                                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                                    Text="{x:Bind TargetsText, Mode=OneWay}"
+                                                    TextAlignment="Left" />
+                                            </StackPanel>
+                                            <StackPanel
+                                                Grid.Column="1"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                Orientation="Horizontal"
+                                                Spacing="8">
+                                                <Button Content="Change target">
+                                                    <Button.Flyout>
+                                                        <MenuFlyout>
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="All"
+                                                                Text="All surfaces" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Processes"
+                                                                Text="Processes" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="History"
+                                                                Text="History" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Tray"
+                                                                Text="Tray" />
+                                                            <MenuFlyoutItem
+                                                                Click="UpdateRuleTargetMenuItem_Click"
+                                                                DataContext="{x:Bind Rule, Mode=OneWay}"
+                                                                Tag="Toast"
+                                                                Text="Toast" />
+                                                        </MenuFlyout>
+                                                    </Button.Flyout>
+                                                </Button>
+                                                <Button
+                                                    Click="RemoveRuleButton_Click"
+                                                    Content="Remove"
+                                                    Tag="{x:Bind Rule, Mode=OneWay}" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -559,6 +641,20 @@
                         VerticalScrollBarVisibility="Auto"
                         VerticalScrollMode="Enabled">
                         <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
+                            <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="App" />
+                                <ToggleSwitch
+                                    x:Name="RunAtStartupToggle"
+                                    Header="Start Prism Monitor when I sign in"
+                                    Toggled="RunAtStartupToggle_Toggled" />
+                                <TextBlock
+                                    x:Name="RunAtStartupStatusTextBlock"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+
                             <StackPanel Spacing="10">
                                 <TextBlock FontWeight="SemiBold" Text="Monitoring" />
                                 <ToggleSwitch

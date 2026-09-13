@@ -170,6 +170,19 @@ public sealed class AppLifecycleTests
         StringAssert.Contains(mainWindow, "process.IconCacheKey");
     }
 
+    [TestMethod]
+    public void TrayContextMenuUsesCachedTopProcessesAndExitCommand()
+    {
+        string trayPath = FindRepoFile(Path.Combine("src", "PrismMonitor.App", "Tray", "ShellTrayIcon.cs"));
+        string tray = File.ReadAllText(trayPath);
+
+        StringAssert.Contains(tray, "TrayStatus status = _cachedStatus");
+        StringAssert.Contains(tray, "status.TopProcesses");
+        StringAssert.Contains(tray, "ShellNotifyIconInterop.MenuDisabled");
+        StringAssert.Contains(tray, "\"Exit\"");
+        StringAssert.Contains(tray, "_exitRequested()");
+    }
+
     private static string FindRepoFile(string relativePath)
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

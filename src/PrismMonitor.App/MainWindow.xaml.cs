@@ -10,6 +10,7 @@ using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.Core.Ui;
 using PrismMonitor.App.Processes;
+using PrismMonitor.App.Startup;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 
@@ -20,6 +21,7 @@ public sealed partial class MainWindow : Window
     private readonly IgnoredProcessStore _ignoredProcessStore;
     private readonly MonitoringSettingsStore _settingsStore;
     private readonly LaunchHistoryStore _launchHistoryStore;
+    private readonly StartupTaskController _startupTaskController;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
     private readonly LatestAsyncWorkGate<IReadOnlyList<CompatibilityProcessInfo>> _processSnapshotGate = new();
@@ -30,10 +32,11 @@ public sealed partial class MainWindow : Window
     private bool _refreshHistoryAgain;
     private bool _allowClose;
     private bool _isLoadingSettings;
+    private bool _isUpdatingStartupTask;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
     public ObservableCollection<HistoryRow> HistoryRows { get; } = [];
-    public ObservableCollection<FilterRow> FilterRows { get; } = [];
+    public ObservableCollection<RuleRow> RuleRows { get; } = [];
     public ObservableCollection<NotificationLevelOption> NotificationLevelOptions { get; } =
     [
         new(NotificationLevel.X86Only, "x86 only"),
@@ -47,14 +50,16 @@ public sealed partial class MainWindow : Window
 
     public event EventHandler? ConfigurationChanged;
 
-    public MainWindow(
+    internal MainWindow(
         IgnoredProcessStore ignoredProcessStore,
         MonitoringSettingsStore settingsStore,
-        LaunchHistoryStore launchHistoryStore)
+        LaunchHistoryStore launchHistoryStore,
+        StartupTaskController startupTaskController)
     {
         _ignoredProcessStore = ignoredProcessStore;
         _settingsStore = settingsStore;
         _launchHistoryStore = launchHistoryStore;
+        _startupTaskController = startupTaskController;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -176,16 +181,19 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        await _ignoredProcessStore.AddAsync(row.Name);
-        await ReloadIgnoredNamesAsync();
+        await _ignoredProcessStore.AddRuleAsync(AppIdentityRuleStore.CreateRuleForIdentity(ToAppIdentity(row), SuppressionTarget.All));
+        await ReloadRulesAsync();
         ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private async void AddIgnoredButton_Click(object sender, RoutedEventArgs e)
+    private async void AddRuleButton_Click(object sender, RoutedEventArgs e)
     {
-        await _ignoredProcessStore.AddAsync(IgnoreNameTextBox.Text);
-        IgnoreNameTextBox.Text = string.Empty;
-        await ReloadIgnoredNamesAsync();
+        AppIdentityRule rule = AppIdentityRuleStore.CreateRuleForIdentity(
+            new AppIdentity(RuleNameTextBox.Text),
+            GetRuleTargetFromControls());
+        await _ignoredProcessStore.AddRuleAsync(rule);
+        RuleNameTextBox.Text = string.Empty;
+        await ReloadRulesAsync();
         ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -255,7 +263,7 @@ public sealed partial class MainWindow : Window
 
     private async void Root_Loaded(object sender, RoutedEventArgs e)
     {
-        await ReloadIgnoredNamesAsync();
+        await ReloadRulesAsync();
         await LoadSettingsControlsAsync();
     }
 
@@ -269,15 +277,63 @@ public sealed partial class MainWindow : Window
         await SaveSettingsFromControlsAsync();
     }
 
-    private async void RemoveIgnoredButton_Click(object sender, RoutedEventArgs e)
+    private async void RunAtStartupToggle_Toggled(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string ignoredName })
+        if (_isLoadingSettings || _isUpdatingStartupTask)
         {
             return;
         }
 
-        await _ignoredProcessStore.RemoveAsync(ignoredName);
-        await ReloadIgnoredNamesAsync();
+        _isUpdatingStartupTask = true;
+        RunAtStartupToggle.IsEnabled = false;
+        RunAtStartupStatusTextBlock.Text = "Updating the Windows startup setting...";
+
+        try
+        {
+            StartupTaskStatus status = await _startupTaskController.SetEnabledAsync(RunAtStartupToggle.IsOn);
+            ApplyStartupTaskStatus(status);
+        }
+        finally
+        {
+            _isUpdatingStartupTask = false;
+        }
+    }
+
+    private async void RemoveRuleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: AppIdentityRule rule })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.RemoveRuleAsync(rule);
+        await ReloadRulesAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async void UpdateRuleTargetMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not MenuFlyoutItem { DataContext: AppIdentityRule rule, Tag: string target })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.UpdateRuleTargetsAsync(rule, GetRuleTargetFromText(target));
+        await ReloadRulesAsync();
+        await RefreshHistoryAsync();
+        ConfigurationChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async void IgnoreHistoryAppButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: HistoryRow row })
+        {
+            return;
+        }
+
+        await _ignoredProcessStore.AddRuleAsync(AppIdentityRuleStore.CreateRuleForIdentity(ToAppIdentity(row), SuppressionTarget.All));
+        await ReloadRulesAsync();
+        await RefreshHistoryAsync();
         ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -293,9 +349,13 @@ public sealed partial class MainWindow : Window
         {
             await RefreshHistoryAsync();
         }
-        else if (string.Equals(selectedTag, "Filters", StringComparison.Ordinal))
+        else if (string.Equals(selectedTag, "Rules", StringComparison.Ordinal))
         {
-            await ReloadIgnoredNamesAsync();
+            await ReloadRulesAsync();
+        }
+        else if (string.Equals(selectedTag, "Settings", StringComparison.Ordinal))
+        {
+            await LoadSettingsControlsAsync();
         }
     }
 
@@ -304,7 +364,7 @@ public sealed partial class MainWindow : Window
         ProcessesPage.Visibility = string.Equals(selectedTag, "Processes", StringComparison.Ordinal)
             ? Visibility.Visible
             : Visibility.Collapsed;
-        FiltersPage.Visibility = string.Equals(selectedTag, "Filters", StringComparison.Ordinal)
+        RulesPage.Visibility = string.Equals(selectedTag, "Rules", StringComparison.Ordinal)
             ? Visibility.Visible
             : Visibility.Collapsed;
         HistoryPage.Visibility = string.Equals(selectedTag, "History", StringComparison.Ordinal)
@@ -333,62 +393,60 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async Task ReloadIgnoredNamesAsync()
+    private async Task ReloadRulesAsync()
     {
-        IReadOnlyList<string> ignoredNames = await _ignoredProcessStore.GetIgnoredNamesAsync();
-        await ApplyIgnoredNamesAsync(ignoredNames);
+        IReadOnlyList<AppIdentityRule> rules = await _ignoredProcessStore.GetRulesAsync();
+        ApplyRuleRows(rules);
     }
 
-    private Task ApplyIgnoredNamesAsync(IReadOnlyList<string> ignoredNames)
+    private void ApplyRuleRows(IReadOnlyList<AppIdentityRule> rules)
     {
-        ApplyFilterRows(ignoredNames);
-        return Task.CompletedTask;
-    }
+        List<AppIdentityRule> sortedRules = rules
+            .OrderBy(rule => rule.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(RuleRow.CreateMatchSummary, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        RuleRow[] existingRows = RuleRows.ToArray();
+        AppIdentityRuleReconciliation reconciliation = AppIdentityRuleReconciler.Reconcile(
+            existingRows.Select(row => row.Rule).ToArray(),
+            sortedRules);
 
-    private void ApplyFilterRows(IReadOnlyList<string> ignoredNames)
-    {
-        HashSet<string> nextIgnoredNames = ignoredNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (FilterRow rowToRemove in FilterRows.Where(row => !nextIgnoredNames.Contains(row.Name)).ToList())
+        foreach (int existingIndex in reconciliation.RemovedExistingIndexes.OrderDescending())
         {
-            FilterRows.Remove(rowToRemove);
+            RuleRows.Remove(existingRows[existingIndex]);
         }
 
-        foreach (string ignoredName in ignoredNames)
+        List<RuleRow> nextRows = new(sortedRules.Count);
+        foreach (AppIdentityRuleReconciliationMatch match in reconciliation.Matches)
         {
-            if (IndexOfFilterRow(ignoredName) < 0)
+            AppIdentityRule rule = sortedRules[match.IncomingIndex];
+            RuleRow row;
+            if (match.ExistingIndex is int existingIndex)
             {
-                FilterRows.Add(new FilterRow(ignoredName));
+                row = existingRows[existingIndex];
+                row.Update(rule);
             }
+            else
+            {
+                row = new RuleRow(rule);
+                RuleRows.Add(row);
+            }
+
+            nextRows.Add(row);
         }
 
-        MoveFilterRowsIntoSortedOrder(ignoredNames);
+        MoveRuleRowsIntoSortedOrder(nextRows);
     }
 
-    private void MoveFilterRowsIntoSortedOrder(IReadOnlyList<string> ignoredNames)
+    private void MoveRuleRowsIntoSortedOrder(IReadOnlyList<RuleRow> rows)
     {
-        for (int targetIndex = 0; targetIndex < ignoredNames.Count; targetIndex++)
+        for (int targetIndex = 0; targetIndex < rows.Count; targetIndex++)
         {
-            string ignoredName = ignoredNames[targetIndex];
-            int currentIndex = IndexOfFilterRow(ignoredName);
+            int currentIndex = RuleRows.IndexOf(rows[targetIndex]);
             if (currentIndex >= 0 && currentIndex != targetIndex)
             {
-                FilterRows.Move(currentIndex, targetIndex);
+                RuleRows.Move(currentIndex, targetIndex);
             }
         }
-    }
-
-    private int IndexOfFilterRow(string ignoredName)
-    {
-        for (int index = 0; index < FilterRows.Count; index++)
-        {
-            if (string.Equals(FilterRows[index].Name, ignoredName, StringComparison.OrdinalIgnoreCase))
-            {
-                return index;
-            }
-        }
-
-        return -1;
     }
 
     private async Task LoadSettingsControlsAsync()
@@ -400,10 +458,29 @@ public sealed partial class MainWindow : Window
             IncludeArm64EcToggle.IsOn = settings.IncludeArm64EcProcesses;
             NotificationLevelComboBox.SelectedItem = NotificationLevelOptions.FirstOrDefault(
                 option => option.Level == settings.NotificationLevel);
+
+            StartupTaskStatus startupStatus = await _startupTaskController.GetStatusAsync();
+            ApplyStartupTaskStatus(startupStatus);
         }
         finally
         {
             _isLoadingSettings = false;
+        }
+    }
+
+    private void ApplyStartupTaskStatus(StartupTaskStatus status)
+    {
+        bool wasLoadingSettings = _isLoadingSettings;
+        _isLoadingSettings = true;
+        try
+        {
+            RunAtStartupToggle.IsOn = status.IsEnabled;
+            RunAtStartupToggle.IsEnabled = status.CanChange;
+            RunAtStartupStatusTextBlock.Text = status.Description;
+        }
+        finally
+        {
+            _isLoadingSettings = wasLoadingSettings;
         }
     }
 
@@ -456,24 +533,23 @@ public sealed partial class MainWindow : Window
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
                     process.ExecutablePath ?? string.Empty,
-                    await _iconProvider.GetIconAsync(
-                        process.Name,
-                        process.ExecutablePath,
-                        process.IconCacheKey),
+                    process.PackageIdentity ?? string.Empty,
+                    process.PublisherIdentity ?? string.Empty,
+                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath, process.IconCacheKey),
                     process.HasLimitedDetails);
             }
             else
             {
+                string executablePath = process.ExecutablePath ?? string.Empty;
                 Rows.Add(new ProcessRow(
                     process.Name,
                     process.ProcessId,
                     process.Architecture,
                     CpuTimeFormatter.Format(process.CpuTime),
-                    process.ExecutablePath ?? string.Empty,
-                    await _iconProvider.GetIconAsync(
-                        process.Name,
-                        process.ExecutablePath,
-                        process.IconCacheKey),
+                    executablePath,
+                    process.PackageIdentity ?? string.Empty,
+                    process.PublisherIdentity ?? string.Empty,
+                    await _iconProvider.GetIconAsync(process.Name, process.ExecutablePath, process.IconCacheKey),
                     process.HasLimitedDetails));
             }
         }
@@ -675,6 +751,43 @@ public sealed partial class MainWindow : Window
             packageIdentity,
             '\u001f',
             publisherIdentity);
+    }
+
+    private static AppIdentity ToAppIdentity(ProcessRow row)
+    {
+        return new AppIdentity(
+            row.Name,
+            row.ExecutablePath,
+            row.PackageIdentity,
+            row.PublisherIdentity,
+            row.Architecture);
+    }
+
+    private static AppIdentity ToAppIdentity(HistoryRow row)
+    {
+        return new AppIdentity(
+            row.ProcessName,
+            row.ExecutablePath,
+            row.PackageIdentity,
+            row.PublisherIdentity,
+            row.Architecture);
+    }
+
+    private SuppressionTarget GetRuleTargetFromControls()
+    {
+        return GetRuleTargetFromText(GetSelectedComboBoxText(RuleTargetComboBox));
+    }
+
+    private static SuppressionTarget GetRuleTargetFromText(string? targetText)
+    {
+        return targetText switch
+        {
+            "Processes" => SuppressionTarget.Processes,
+            "History" => SuppressionTarget.History,
+            "Tray" => SuppressionTarget.Tray,
+            "Toast" => SuppressionTarget.Toast,
+            _ => SuppressionTarget.All
+        };
     }
 
     private LaunchHistoryQuery GetHistoryQueryFromControls()

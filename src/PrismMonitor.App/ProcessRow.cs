@@ -15,6 +15,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
     private string _detailsStatus;
     private Visibility _detailsStatusVisibility;
     private string _executablePath;
+    private string _packageIdentity;
+    private string _publisherIdentity;
     private ImageSource _icon;
 
     public ProcessRow(
@@ -23,6 +25,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         string architecture,
         string cpuTime,
         string executablePath,
+        string packageIdentity,
+        string publisherIdentity,
         ImageSource icon,
         bool hasLimitedDetails = false)
     {
@@ -35,6 +39,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         _detailsStatus = CreateDetailsStatus(hasLimitedDetails);
         _detailsStatusVisibility = CreateDetailsStatusVisibility(hasLimitedDetails);
         _executablePath = executablePath;
+        _packageIdentity = packageIdentity;
+        _publisherIdentity = publisherIdentity;
         _icon = icon;
     }
 
@@ -97,6 +103,18 @@ public sealed class ProcessRow : INotifyPropertyChanged
         private set => SetProperty(ref _executablePath, value);
     }
 
+    public string PackageIdentity
+    {
+        get => _packageIdentity;
+        private set => SetProperty(ref _packageIdentity, value);
+    }
+
+    public string PublisherIdentity
+    {
+        get => _publisherIdentity;
+        private set => SetProperty(ref _publisherIdentity, value);
+    }
+
     public ImageSource Icon
     {
         get => _icon;
@@ -108,6 +126,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         string architecture,
         string cpuTime,
         string executablePath,
+        string packageIdentity,
+        string publisherIdentity,
         ImageSource icon,
         bool hasLimitedDetails = false)
     {
@@ -115,6 +135,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         Architecture = architecture;
         CpuTime = cpuTime;
         ExecutablePath = executablePath;
+        PackageIdentity = packageIdentity;
+        PublisherIdentity = publisherIdentity;
         Icon = icon;
         DetailsStatus = CreateDetailsStatus(hasLimitedDetails);
         DetailsStatusVisibility = CreateDetailsStatusVisibility(hasLimitedDetails);
