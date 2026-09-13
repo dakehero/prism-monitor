@@ -10,29 +10,50 @@ public sealed class LaunchHistoryStore(string eventsFilePath, string summaryFile
     private static readonly TimeSpan RetentionWindow = TimeSpan.FromDays(30);
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    public async Task AppendAsync(LaunchHistoryEvent historyEvent, CancellationToken cancellationToken = default)
+    public Task AppendAsync(LaunchHistoryEvent historyEvent, CancellationToken cancellationToken = default)
     {
+        return AppendRangeAsync([historyEvent], cancellationToken);
+    }
+
+    public async Task AppendRangeAsync(
+        IReadOnlyList<LaunchHistoryEvent> historyEvents,
+        CancellationToken cancellationToken = default)
+    {
+        if (historyEvents.Count == 0)
+        {
+            return;
+        }
+
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            string? directory = Path.GetDirectoryName(eventsFilePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
+            EnsureStorageDirectory();
+            string payload = string.Join(
+                Environment.NewLine,
+                historyEvents.Select(historyEvent => JsonSerializer.Serialize(
+                    historyEvent,
+                    LaunchHistoryJsonContext.Default.LaunchHistoryEvent))) + Environment.NewLine;
 
-            string json = JsonSerializer.Serialize(
-                historyEvent,
-                LaunchHistoryJsonContext.Default.LaunchHistoryEvent);
-
-            await File.AppendAllTextAsync(eventsFilePath, json + Environment.NewLine, cancellationToken)
+            await File.AppendAllTextAsync(eventsFilePath, payload, cancellationToken)
                 .ConfigureAwait(false);
 
-            await RebuildSummaryAsync(historyEvent.DetectedAt, cancellationToken).ConfigureAwait(false);
+            await RebuildSummaryAsync(
+                    historyEvents.Max(historyEvent => historyEvent.DetectedAt),
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    private void EnsureStorageDirectory()
+    {
+        string? directory = Path.GetDirectoryName(eventsFilePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
         }
     }
 

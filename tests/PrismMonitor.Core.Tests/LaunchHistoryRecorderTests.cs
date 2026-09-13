@@ -7,42 +7,67 @@ namespace PrismMonitor.Core.Tests;
 public sealed class LaunchHistoryRecorderTests
 {
     [TestMethod]
-    public void CaptureNewEvents_ReturnsEachProcessIdOnlyOnce()
+    public void CaptureNewEvents_RecordsProcessInstanceOnlyOnce()
     {
         LaunchHistoryRecorder recorder = new();
+        DateTimeOffset creationTime = new(2026, 7, 6, 7, 59, 55, TimeSpan.Zero);
         DateTimeOffset detectedAt = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
-        CompatibilityProcessInfo process = new("Chrome", 100, "x64", TimeSpan.FromSeconds(1), @"C:\Apps\Chrome.exe");
+        CompatibilityProcessInfo process = Process(100, creationTime, detectedAt);
 
-        IReadOnlyList<LaunchHistoryEvent> first = recorder.CaptureNewEvents([process], detectedAt);
-        IReadOnlyList<LaunchHistoryEvent> second = recorder.CaptureNewEvents([process], detectedAt.AddMinutes(1));
+        IReadOnlyList<LaunchHistoryEvent> first = recorder.CaptureNewEvents([process]);
+        IReadOnlyList<LaunchHistoryEvent> second = recorder.CaptureNewEvents([process]);
 
         Assert.HasCount(1, first);
         Assert.IsEmpty(second);
-        Assert.AreEqual("Chrome", first[0].ProcessName);
-        Assert.AreEqual("x64", first[0].Architecture);
-        Assert.AreEqual(100, first[0].ProcessId);
-        Assert.AreEqual(@"C:\Apps\Chrome.exe", first[0].ExecutablePath);
-        Assert.IsNull(first[0].StartedAt);
+        Assert.AreEqual(process.InstanceKey, first[0].InstanceKey);
+        Assert.AreEqual(creationTime, first[0].StartedAt);
         Assert.AreEqual(detectedAt, first[0].DetectedAt);
     }
 
     [TestMethod]
-    public void CaptureNewEvents_ReturnsNewEventForSameNameWithDifferentProcessId()
+    public void CaptureNewEvents_RecordsReusedPidWithNewInstanceKey()
     {
         LaunchHistoryRecorder recorder = new();
-        DateTimeOffset detectedAt = new(2026, 7, 6, 8, 0, 0, TimeSpan.Zero);
+        DateTimeOffset firstCreation = DateTimeOffset.UnixEpoch;
+        DateTimeOffset reusedCreation = firstCreation.AddMinutes(1);
 
-        _ = recorder.CaptureNewEvents([
-            new CompatibilityProcessInfo("Chrome", 100, "x64", TimeSpan.FromSeconds(1), @"C:\Apps\Chrome.exe")
-        ], detectedAt);
+        _ = recorder.CaptureNewEvents([Process(42, firstCreation, firstCreation.AddSeconds(1))]);
+        IReadOnlyList<LaunchHistoryEvent> reused = recorder.CaptureNewEvents(
+            [Process(42, reusedCreation, reusedCreation.AddSeconds(1))]);
 
-        IReadOnlyList<LaunchHistoryEvent> result = recorder.CaptureNewEvents([
-            new CompatibilityProcessInfo("Chrome", 101, "x64", TimeSpan.FromSeconds(2), @"C:\Apps\Chrome.exe")
-        ], detectedAt.AddMinutes(1));
+        Assert.HasCount(1, reused);
+        Assert.AreEqual(reusedCreation, reused[0].StartedAt);
+        Assert.AreEqual(reusedCreation, reused[0].InstanceKey!.Value.IdentityTime);
+    }
 
-        Assert.HasCount(1, result);
-        Assert.AreEqual("Chrome", result[0].ProcessName);
-        Assert.AreEqual(101, result[0].ProcessId);
-        Assert.AreEqual(detectedAt.AddMinutes(1), result[0].DetectedAt);
+    [TestMethod]
+    public void CaptureNewEvents_ForgetsInstanceAfterItLeavesCurrentSnapshot()
+    {
+        LaunchHistoryRecorder recorder = new();
+        DateTimeOffset creation = DateTimeOffset.UnixEpoch;
+        CompatibilityProcessInfo process = Process(42, creation, creation.AddSeconds(1));
+
+        _ = recorder.CaptureNewEvents([process]);
+        Assert.IsEmpty(recorder.CaptureNewEvents([]));
+        IReadOnlyList<LaunchHistoryEvent> reappeared = recorder.CaptureNewEvents([process]);
+
+        Assert.HasCount(1, reappeared);
+    }
+
+    private static CompatibilityProcessInfo Process(
+        int processId,
+        DateTimeOffset creationTime,
+        DateTimeOffset detectedAt)
+    {
+        ProcessInstanceKey key = new(processId, creationTime, IsCreationTimeVerified: true);
+        return new CompatibilityProcessInfo(
+            "Chrome",
+            processId,
+            "x64",
+            TimeSpan.FromSeconds(1),
+            @"C:\Apps\Chrome.exe",
+            CreationTime: creationTime,
+            DetectedAt: detectedAt,
+            InstanceKey: key);
     }
 }

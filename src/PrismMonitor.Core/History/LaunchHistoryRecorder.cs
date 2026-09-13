@@ -4,17 +4,19 @@ namespace PrismMonitor.Core.History;
 
 public sealed class LaunchHistoryRecorder
 {
-    private readonly HashSet<int> _seenProcessIds = [];
+    private readonly HashSet<ProcessInstanceKey> _seenInstances = [];
 
     public IReadOnlyList<LaunchHistoryEvent> CaptureNewEvents(
-        IReadOnlyList<CompatibilityProcessInfo> processes,
-        DateTimeOffset detectedAt)
+        IReadOnlyList<CompatibilityProcessInfo> processes)
     {
+        Dictionary<ProcessInstanceKey, CompatibilityProcessInfo> processesByInstance = processes
+            .ToDictionary(GetInstanceKey);
+        _seenInstances.IntersectWith(processesByInstance.Keys);
         List<LaunchHistoryEvent> events = [];
 
-        foreach (CompatibilityProcessInfo process in processes)
+        foreach ((ProcessInstanceKey instanceKey, CompatibilityProcessInfo process) in processesByInstance)
         {
-            if (!_seenProcessIds.Add(process.ProcessId))
+            if (!_seenInstances.Add(instanceKey))
             {
                 continue;
             }
@@ -24,12 +26,21 @@ public sealed class LaunchHistoryRecorder
                 process.Architecture,
                 process.ProcessId,
                 process.ExecutablePath,
-                StartedAt: null,
-                detectedAt,
+                process.CreationTime,
+                process.DetectedAt ?? process.CreationTime ?? DateTimeOffset.MinValue,
                 process.PackageIdentity,
-                process.PublisherIdentity));
+                process.PublisherIdentity,
+                instanceKey));
         }
 
         return events;
+    }
+
+    private static ProcessInstanceKey GetInstanceKey(CompatibilityProcessInfo process)
+    {
+        return process.InstanceKey ?? new ProcessInstanceKey(
+            process.ProcessId,
+            process.DetectedAt ?? process.CreationTime ?? DateTimeOffset.MinValue,
+            process.CreationTime is not null);
     }
 }

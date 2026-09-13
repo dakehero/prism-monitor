@@ -21,6 +21,8 @@ internal sealed class CompatibilityProcessToastService : IDisposable
 
     public event EventHandler<NotificationProcessOpenRequestedEventArgs>? ProcessOpenRequested;
 
+    public event EventHandler? RulesChanged;
+
     public void Register()
     {
         if (!AppNotificationManager.IsSupported() || _registered)
@@ -119,6 +121,7 @@ internal sealed class CompatibilityProcessToastService : IDisposable
             && activation.ProcessName is string processName)
         {
             await _ignoredProcessStore.AddAsync(processName);
+            RulesChanged?.Invoke(this, EventArgs.Empty);
             ShowStatus("Added to ignore list", processName);
         }
     }

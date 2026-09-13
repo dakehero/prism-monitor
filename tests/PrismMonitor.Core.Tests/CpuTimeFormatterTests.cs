@@ -6,6 +6,12 @@ namespace PrismMonitor.Core.Tests;
 public sealed class CpuTimeFormatterTests
 {
     [TestMethod]
+    public void Format_ReturnsUnavailable_WhenCpuTimeIsMissing()
+    {
+        Assert.AreEqual("Unavailable", CpuTimeFormatter.Format(null));
+    }
+
+    [TestMethod]
     public void Format_ReturnsZeroSeconds_ForZero()
     {
         Assert.AreEqual("0s", CpuTimeFormatter.Format(TimeSpan.Zero));

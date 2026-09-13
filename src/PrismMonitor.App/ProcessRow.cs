@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
 namespace PrismMonitor.App;
@@ -11,6 +12,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
     private string _cpuTime;
     private string _summaryLine;
     private string _detailsLine;
+    private string _detailsStatus;
+    private Visibility _detailsStatusVisibility;
     private string _executablePath;
     private string _packageIdentity;
     private string _publisherIdentity;
@@ -24,7 +27,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         string executablePath,
         string packageIdentity,
         string publisherIdentity,
-        ImageSource icon)
+        ImageSource icon,
+        bool hasLimitedDetails = false)
     {
         _name = name;
         ProcessId = processId;
@@ -32,6 +36,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         _cpuTime = cpuTime;
         _summaryLine = CreateSummaryLine(cpuTime);
         _detailsLine = CreateDetailsLine(processId, cpuTime);
+        _detailsStatus = CreateDetailsStatus(hasLimitedDetails);
+        _detailsStatusVisibility = CreateDetailsStatusVisibility(hasLimitedDetails);
         _executablePath = executablePath;
         _packageIdentity = packageIdentity;
         _publisherIdentity = publisherIdentity;
@@ -79,6 +85,18 @@ public sealed class ProcessRow : INotifyPropertyChanged
         private set => SetProperty(ref _detailsLine, value);
     }
 
+    public string DetailsStatus
+    {
+        get => _detailsStatus;
+        private set => SetProperty(ref _detailsStatus, value);
+    }
+
+    public Visibility DetailsStatusVisibility
+    {
+        get => _detailsStatusVisibility;
+        private set => SetProperty(ref _detailsStatusVisibility, value);
+    }
+
     public string ExecutablePath
     {
         get => _executablePath;
@@ -110,7 +128,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         string executablePath,
         string packageIdentity,
         string publisherIdentity,
-        ImageSource icon)
+        ImageSource icon,
+        bool hasLimitedDetails = false)
     {
         Name = name;
         Architecture = architecture;
@@ -119,6 +138,8 @@ public sealed class ProcessRow : INotifyPropertyChanged
         PackageIdentity = packageIdentity;
         PublisherIdentity = publisherIdentity;
         Icon = icon;
+        DetailsStatus = CreateDetailsStatus(hasLimitedDetails);
+        DetailsStatusVisibility = CreateDetailsStatusVisibility(hasLimitedDetails);
     }
 
     private static string CreateDetailsLine(int processId, string cpuTime)
@@ -129,6 +150,16 @@ public sealed class ProcessRow : INotifyPropertyChanged
     private static string CreateSummaryLine(string cpuTime)
     {
         return string.Concat("CPU time ", cpuTime);
+    }
+
+    private static string CreateDetailsStatus(bool hasLimitedDetails)
+    {
+        return hasLimitedDetails ? "Limited details" : string.Empty;
+    }
+
+    private static Visibility CreateDetailsStatusVisibility(bool hasLimitedDetails)
+    {
+        return hasLimitedDetails ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

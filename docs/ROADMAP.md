@@ -1,312 +1,88 @@
 # Prism Monitor Roadmap
 
-This document tracks the product direction for Prism Monitor, a Windows ARM64 tray app for observing desktop processes that run through the Windows compatibility layer.
+Prism Monitor is a Windows ARM64 tray app for observing compatibility-mode desktop processes. Development is now evidence-driven maintenance: fix confirmed defects, compatibility problems, and measured power regressions; add features when explicitly requested.
 
-## Principles
+## Release Status
 
-- Keep the tray experience lightweight and use the main window for full process details.
-- Route the main window, tray tooltip, and Toast notifications through the same filtering rules.
-- Use system process data only. Do not add CPU sampling loops.
-- Show clear feedback for destructive actions such as ending a process.
-- Keep each milestone small enough to verify and release independently.
+- Latest GitHub release: [v0.7.1](https://github.com/dakehero/prism-monitor/releases/tag/v0.7.1).
+- v0.7 feature scope is closed with the monitoring pipeline and app identity rules. The Rules workflow is implemented but awaits mainline integration and package-level verification.
+- Next release candidate: **v0.8.0**, not yet published. It combines the remaining Rules workflow with opt-in sign-in startup.
+- Historical specifications and verification records describe their original builds, not the current installed or released version.
 
-## v0.3 Main Window Usability
+## Product Constraints
 
-Status: complete.
+- Use Windows-provided process data and cumulative CPU time; do not add CPU sampling loops.
+- Keep one monitoring pipeline for Processes, History, tray status, and notifications.
+- Cache expensive identity enrichment and tolerate inaccessible processes.
+- Keep tray interactions asynchronous and the main window reusable.
+- Store rules and history locally; preserve migration and normal update behavior.
+- Require real render review for UI changes and runtime evidence for power claims.
 
-### Process Icons
+## Completed Baseline
 
-Show the executable icon next to each process in the main window.
+| Series | Delivered scope |
+| --- | --- |
+| v0.3 | Process icons, termination, stable list updates, architecture labels |
+| v0.4 | Persistent ignore rules |
+| v0.5 | Notifications for newly observed compatible processes |
+| v0.6 | Durable launch history and list/detail UI |
+| v0.6.1 | Notification navigation to current processes or history |
+| v0.7.0-v0.7.1 | Shared monitoring host, refresh coalescing, enrichment cache, partial metadata, power-aware cadence |
 
-Acceptance criteria:
+The released monitoring policy uses 3-second refreshes on AC or unknown power, 10 seconds on battery with the main window visible, and a 30-second fallback on battery while hidden. Interactions and configuration or power changes request refreshes through the same coordinator.
 
-- Common x64 and x86 desktop processes display their own icons.
-- Processes with unreadable paths fall back gracefully.
-- Repeated refreshes do not introduce obvious UI stalls.
+Evidence: [monitoring and battery verification](verification/2026-07-10-v0.7.0-v0.7.1-monitoring-verification.md). These measurements describe that candidate and are not a new benchmark of v0.8.
 
-### End Process
+## v0.7 Rules Closeout
 
-Add a per-row action for ending a process.
+Implemented, pending integration and release:
 
-Acceptance criteria:
+- App identity rules match package, path, publisher, or process name, with optional architecture qualification.
+- Suppression targets include Processes, History, Tray, Toast, and All.
+- Processes and History offer an `Ignore app` action.
+- Rules is a dedicated view with creation, target editing, and removal.
+- Legacy ignored names migrate without losing user choices.
+- Rule rows reconcile in place, including target collisions, to avoid flicker.
+- UI changes notify the shared monitoring host to reload configuration.
 
-- Ordinary user processes can be ended from the main window.
-- Access denied, protected process, and already-exited cases show visible feedback.
-- Failed termination attempts do not crash the app.
+Evidence: [Rules UI review](verification/2026-07-10-v0.7.2-live-ui-review.md). The historical v0.7.2 label identifies development work; no v0.7.2 release has been published.
 
-### No-Flicker Refresh
+The earlier v0.7.3 diagnostics and v0.7.4 polish proposals are no longer scheduled milestones. Completed UI fixes are part of this closeout; additional diagnostics and polish require a concrete need.
 
-Update the existing list in place instead of clearing and rebuilding it.
+## v0.8.0 Sign-In Startup
 
-Acceptance criteria:
+Status: implemented release candidate; not released.
 
-- Existing rows update CPU time and metadata in place.
-- New processes are inserted and exited processes are removed.
-- The UI remains responsive while refreshes are running.
+- Add an opt-in Settings switch using Windows `StartupTask`.
+- Default to disabled and start in the tray after sign-in.
+- Let Windows persist and manage the startup state.
+- Respect user-disabled and policy-controlled states.
+- Keep the existing standard-user execution model.
 
-### Tray Tooltip Architecture
+### Remaining Release Checks
 
-Keep the tooltip compact, but append the process architecture to each process name.
+- [ ] Merge the reviewed candidate into main.
+- [ ] Verify a signed package update preserves existing rules and history.
+- [ ] Render-review the integrated Processes, History, Rules, and Settings views.
+- [ ] Verify rule changes across tray menu/tooltip and Toast notifications.
+- [ ] Verify Toast navigation for running and exited processes.
+- [ ] Enable and disable startup, restart the app, and confirm state readback.
+- [ ] Verify Windows Startup Apps changes are reflected in Settings.
+- [ ] Verify a real sign-in starts one tray instance without opening the main window.
+- [ ] Publish a version-matched package, tag, and release notes after approval.
 
-Acceptance criteria:
+Compilation, Native AOT publishing, and unsigned MSIX validation do not replace these installed-app checks. See [closeout verification](verification/2026-09-14-release-closeout.md) for the current evidence and blockers.
 
-- Tooltip rows use the format `process-name (architecture)`.
-- The tooltip stays within the Windows notification area tooltip limit.
+## Unscheduled Candidates
 
-## v0.4 Ignore Rules
+These are ideas, not commitments for v0.8:
 
-Status: complete.
-
-Add user-configurable ignore rules.
-
-Acceptance criteria:
-
-- Process-name matching is case-insensitive.
-- Users can ignore a process directly from the main window.
-- Users can view and remove ignored names.
-- Ignore rules persist across app restarts.
-- Ignored processes are hidden from the main window, tray tooltip, and Toast notifications.
-
-## v0.5 Toast Notifications
-
-Status: complete.
-
-Notify the user when a new compatibility-mode process appears.
-
-Acceptance criteria:
-
-- Newly detected compatibility-mode processes trigger a Toast.
-- Processes already running when Prism Monitor starts do not create a notification burst.
-- Ignored processes do not trigger Toast notifications.
-- Toast quick actions can end the process or add it to the ignore list.
-
-## v0.6 Main Window History and UI Polish
-
-Status: complete.
-
-Polish the main window settings surface and add durable launch history for compatibility-mode processes.
-
-Acceptance criteria:
-
-- Settings are grouped into Monitoring, Notifications, Permissions, and Data sections.
-- Launch history records compatibility-mode launches for 30 days.
-- History persists as JSONL events with a rebuilt summary for the main window.
-- Filters page uses diff-style updates and does not clear, rebuild, or flicker during process refresh.
-- Adding and removing ignored apps remains stable.
-
-## v0.6.1 Toast Navigation
-
-Status: complete.
-
-Make Toast notifications useful as entry points into the main window.
-
-Acceptance criteria:
-
-- Clicking the Toast body opens the main window instead of only dismissing the notification.
-- If the notified process is still running, the app opens the Processes page and focuses or highlights that process.
-- If the process has exited, the app opens the History page and filters to the notified process name.
-- Existing Toast quick actions for ending or ignoring a process keep their current behavior.
-- Toast activation handling remains safe when the app is already running, hidden to tray, or cold-started from notification activation.
-
-## v0.7 Low-Power Rules Release
-
-Status: active on `codex/0.7-low-power-snapshot`.
-
-v0.7 is the release that makes Prism Monitor credible as an always-on tray app. It should detect compatibility-mode apps, remember useful launch context, suppress noise with understandable app rules, and provide enough local evidence that the app is not wasting battery.
-
-### Release Contract
-
-- The app remains lightweight: no CPU sampling loops, no profiler dependency, and no full task-manager scope.
-- One monitoring path feeds Processes, History, tray tooltip/menu, and Toast notifications.
-- Expensive process enrichment is cached by PID plus process start time.
-- Rules are app-identity based, not only process-name based.
-- The common path is one click: `Ignore app`.
-- Advanced rule editing exists for users who need target-specific suppression.
-- UI work must receive a real render review before handoff.
-- Power behavior must be verified with local runtime evidence before release.
-
-### Architecture Shape
-
-```text
-Windows process data
-  -> low-power snapshot coordinator
-  -> process enrichment cache
-  -> app identity rule evaluator
-  -> Processes / History / Tray / Toast
-```
-
-`PrismMonitor.Core` owns testable models, rules, history, and monitoring policy. `PrismMonitor.App` owns WinUI, tray, Toast, icons, app lifetime, process interop, and packaging.
-
-### v0.7.0 Low-Power Snapshot Foundation
-
-Status: landed in `main`.
-
-Scope:
-
-- Shared snapshot path for main window refresh, tray tooltip/menu, Toast detection, and history recording.
-- Short-lived process list cache.
-- Concurrent refresh coalescing.
-- Power-aware refresh policy:
-  - Plugged in or unknown power: responsive periodic refresh.
-  - Battery with main window visible: slower periodic refresh.
-  - Battery while hidden to tray: interaction-driven refresh.
-
-Exit criteria:
-
-- Core tests cover snapshot coordination and refresh coalescing.
-- App build passes for `win-arm64` Release.
-- Tray hover and right-click refresh paths remain asynchronous.
-
-Follow-up proof is tracked in v0.7.3.
-
-### v0.7.1 Enrichment Cache
-
-Status: landed in `main`.
-
-Scope:
-
-- Cache process architecture, executable path, package identity, publisher identity, and ARM64EC/ARM64X classification.
-- Invalidate cache on PID reuse by using process start time.
-- Keep partial metadata when protected or inaccessible processes cannot be fully read.
-
-Exit criteria:
-
-- Tests cover cache hit, invalidation, concurrent refresh, partial metadata, and ARM64EC-related classification.
-- Long-running sessions do not repeatedly re-read unchanged identity metadata.
-
-Follow-up proof is tracked in v0.7.3.
-
-### v0.7.2 App Rules Workflow
-
-Status: implementation complete on `codex/0.7-low-power-snapshot`; package-level tray and Toast visual checks remain a v0.7 release gate.
-
-Goal: replace the legacy ignored-name workflow with a real app rules surface.
-
-Scope:
-
-- Show `Rules` as a first-class main window view.
-- Display active rules with:
-  - display name
-  - match summary
-  - suppression targets
-  - remove action
-- Create rules from:
-  - a running process
-  - a history row
-  - the Rules page
-- Prefer the strongest available identity:
-  - package identity
-  - executable path
-  - publisher identity
-  - process name
-  - architecture only as a qualifier, never as the only match field
-- Support target-specific suppression:
-  - All
-  - Processes
-  - History
-  - Tray
-  - Toast
-- Preserve migration from legacy ignored process names.
-- Preserve no-flicker updates in Processes, History, and Rules.
-
-Current branch state:
-
-- Rule store add/update/remove APIs are implemented.
-- `Ignore app` actions from Processes and History create app identity rules.
-- Rules view replaces the old Filters view.
-- Rules can be added with a chosen suppression target and removed.
-- Existing rules can change suppression target from the Rules view.
-- Architecture-only rules are rejected so one broad architecture value cannot hide many unrelated apps.
-- Automated Core tests cover app identity rules across Processes, History, tray, and Toast snapshot outputs.
-- v0.7.2 acceptance tests cover running-process suppression/restoration, history-created rules after process exit, target editing, and legacy ignored-name migration.
-- App wiring tests verify tray status, Toast detection, and history recording all consume the same rule-filtered monitoring snapshot.
-- Live Release rendering verifies Processes, History, Rules, Settings, expanded details, scrolling, rule creation, and target editing.
-- Target edits reconcile Rules rows in place, including same-identity target collisions, so the list does not flash empty.
-- The full Core suite passes with 155 tests and the `win-arm64` Release build succeeds with only the two known Windows SDK trim warnings.
-- The live UI evidence and the remaining notification-area capture boundary are documented in `docs/verification/2026-07-10-v0.7.2-live-ui-review.md`.
-
-Package-level release follow-up:
-
-- Manually capture the tray right-click menu and dynamic Top N content.
-- Manually capture a system Toast and verify body-click activation from the current MSIX identity.
-
-Exit criteria:
-
-- Creating a rule from a running process suppresses that app from every selected surface.
-- Creating a rule from a history row works after the process has exited.
-- Editing suppression targets changes only the selected surfaces.
-- Deleting a rule restores matching apps on the next refresh.
-- Legacy ignored-name data migrates without losing user choices.
-- Render review evidence is captured or the exact blocker is documented.
-
-### v0.7.3 Power Diagnostics and Release Proof
-
-Status: planned after v0.7.2.
-
-Goal: prove the low-power architecture on the target machine instead of relying on intent.
-
-Scope:
-
-- Add local diagnostics in Settings or a developer-friendly diagnostics view:
-  - power source
-  - active refresh mode
-  - foreground and background refresh intervals
-  - last snapshot time and duration
-  - process count before and after rules
-  - enrichment cache hit/miss counts for the current session
-- Add a manual smoke-test script or documented sequence for:
-  - plugged-in baseline
-  - battery with main window visible
-  - battery hidden to tray
-- Keep diagnostics local-only and avoid introducing a new polling loop.
-
-Exit criteria:
-
-- Battery hidden-to-tray mode shows interaction-driven refresh.
-- Diagnostics explain the active refresh mode without a debugger.
-- A local smoke record captures CPU delta, working set, power source, refresh mode, app version/path, and visibility state.
-- Diagnostics have no measurable idle overhead beyond the existing monitoring path.
-
-### v0.7.4 UI Fit and Finish
-
-Status: planned after v0.7.3 unless v0.7.2 render review exposes release-blocking UI issues.
-
-Goal: make the visible experience feel coherent after the rules and diagnostics surfaces exist.
-
-Scope:
-
-- Align Processes, History, Rules, and Settings around the same list-detail design language.
-- Keep default rows compact.
-- Keep expanded details unframed unless a real nested tool needs a boundary.
-- Make long paths, package identities, publisher identities, and PIDs easy to inspect and copy.
-- Keep empty states clear and scroll paths visible.
-- Avoid equal-width table layouts where content length varies heavily.
-
-Exit criteria:
-
-- No obvious row/header misalignment at the default window size.
-- Long paths and identities remain inspectable and copyable.
-- The main window remains singleton-like and activates quickly from tray and Toast.
-- Render review is completed for every changed surface.
-
-### Release Gates
-
-v0.7 is ready to tag only when all of these are true:
-
-- Core tests pass for snapshots, enrichment cache, ARM64EC classification, rule migration, rule matching, target-specific suppression, and partial metadata.
-- App build passes for `win-arm64` Release.
-- Rules are manually verified across Processes, History, tray tooltip/menu, and Toast notifications.
-- Battery and plugged-in smoke evidence is recorded.
-- UI render review is complete for all changed visible surfaces.
-- No generated MSIX artifacts, local logs, certificates, package output, or runtime data files are committed.
-
-### Deferred to v0.8+
-
-- Store-ready signing and release automation improvements.
-- Rich notification policy presets.
+- Notification policy presets.
+- Local diagnostics for refresh cadence, cache state, and power mode.
+- Packaging and Store submission improvements.
 - Localization after the English baseline stabilizes.
-- A larger diagnostics dashboard if the v0.7 local diagnostics prove useful.
+- A CLI render-review harness for WinUI.
 
-## Future Ideas
+## Maintenance Triggers
 
-- Command-line render-review harness for WinUI UI changes.
+Start an iteration for a reproducible defect, a Windows compatibility change, a measured idle-power regression, a broken build/package path, or an explicit feature request. Each iteration should produce a scoped fix, relevant verification, and a reviewable PR. Without an actionable trigger, leave the code unchanged.

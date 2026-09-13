@@ -1,3 +1,5 @@
+using PrismMonitor.Core.Processes;
+
 namespace PrismMonitor.Core.History;
 
 public sealed record LaunchHistoryEvent(
@@ -8,4 +10,5 @@ public sealed record LaunchHistoryEvent(
     DateTimeOffset? StartedAt,
     DateTimeOffset DetectedAt,
     string? PackageIdentity = null,
-    string? PublisherIdentity = null);
+    string? PublisherIdentity = null,
+    ProcessInstanceKey? InstanceKey = null);

@@ -10,9 +10,16 @@ internal sealed class ProcessIconProvider
 {
     private readonly Dictionary<string, ImageSource> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-    public async Task<ImageSource> GetIconAsync(string processName, string? executablePath)
+    public async Task<ImageSource> GetIconAsync(
+        string processName,
+        string? executablePath,
+        string? iconCacheKey = null)
     {
-        string cacheKey = string.IsNullOrWhiteSpace(executablePath) ? processName : executablePath;
+        string cacheKey = !string.IsNullOrWhiteSpace(iconCacheKey)
+            ? iconCacheKey
+            : string.IsNullOrWhiteSpace(executablePath)
+                ? processName
+                : executablePath;
         if (_cache.TryGetValue(cacheKey, out ImageSource? cachedIcon))
         {
             return cachedIcon;

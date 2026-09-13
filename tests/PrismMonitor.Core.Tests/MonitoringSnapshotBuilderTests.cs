@@ -131,4 +131,20 @@ public sealed class MonitoringSnapshotBuilderTests
             new[] { "Tool", "VisibleApp" },
             snapshot.HistoryProcesses.Select(process => process.Name).ToArray());
     }
+
+    [TestMethod]
+    public void Build_CarriesPublicationMetadata()
+    {
+        DateTimeOffset capturedAt = DateTimeOffset.UnixEpoch.AddHours(1);
+
+        MonitoringSnapshot snapshot = MonitoringSnapshotBuilder.Build(
+            [],
+            [],
+            MonitoringSettings.Default,
+            sequence: 7,
+            capturedAt: capturedAt);
+
+        Assert.AreEqual(7L, snapshot.Sequence);
+        Assert.AreEqual(capturedAt, snapshot.CapturedAt);
+    }
 }
