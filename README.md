@@ -11,6 +11,7 @@ Prism Monitor is a Windows ARM64 tray app for spotting compatibility-mode deskto
 - Main window shows process icons and supports ending or ignoring a process
 - Ignore rules are persisted locally and apply to the main window, tooltip, and Toast notifications
 - Toast notification for newly detected compatibility-mode processes, with quick actions to end or ignore
+- Optional Windows sign-in startup, controlled from Settings and managed by Windows Startup Apps
 - Uses public Windows APIs and avoids CPU sampling
 
 ## Install
@@ -43,6 +44,7 @@ Run Prism Monitor from Start or another interactive Windows shell. The app start
 - Left-click the tray icon to show the process list.
 - Right-click the tray icon to open the tray menu, then choose `Exit`.
 - Use the main window to end a process or add/remove ignored process names.
+- Use Settings to choose whether Prism Monitor starts in the tray after you sign in.
 
 ## Development MSIX package
 

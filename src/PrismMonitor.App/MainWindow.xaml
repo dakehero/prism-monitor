@@ -637,6 +637,20 @@
                         VerticalScrollMode="Enabled">
                         <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
                             <StackPanel Spacing="10">
+                                <TextBlock FontWeight="SemiBold" Text="App" />
+                                <ToggleSwitch
+                                    x:Name="RunAtStartupToggle"
+                                    Header="Start Prism Monitor when I sign in"
+                                    Toggled="RunAtStartupToggle_Toggled" />
+                                <TextBlock
+                                    x:Name="RunAtStartupStatusTextBlock"
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    TextWrapping="WrapWholeWords" />
+                            </StackPanel>
+
+                            <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" />
+
+                            <StackPanel Spacing="10">
                                 <TextBlock FontWeight="SemiBold" Text="Monitoring" />
                                 <ToggleSwitch
                                     x:Name="IncludeArm64EcToggle"

@@ -14,6 +14,7 @@ using PrismMonitor.App.Diagnostics;
 using PrismMonitor.App.Notifications;
 using PrismMonitor.App.Power;
 using PrismMonitor.App.Processes;
+using PrismMonitor.App.Startup;
 using PrismMonitor.App.Tray;
 
 namespace PrismMonitor.App;
@@ -41,6 +42,7 @@ public partial class App : Application
     private readonly LaunchHistoryRecorder _launchHistoryRecorder = new();
     private readonly PowerStatusProvider _powerStatusProvider = new();
     private readonly CompatibilityProcessNotifier _processNotifier = new();
+    private readonly StartupTaskController _startupTaskController = new();
     private readonly TrayWindowLifetime _windowLifetime = new();
     private readonly DispatcherQueue _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
     private readonly DispatcherTimer _notificationTimer = new();
@@ -141,7 +143,8 @@ public partial class App : Application
             _processService,
             _ignoredProcessStore,
             _settingsStore,
-            _launchHistoryStore);
+            _launchHistoryStore,
+            _startupTaskController);
         _windowLifetime.MarkWindowCreated();
         _window.HiddenToTray += (_, _) =>
         {

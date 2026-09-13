@@ -9,6 +9,7 @@ using PrismMonitor.Core.Processes;
 using PrismMonitor.Core.Rules;
 using PrismMonitor.Core.Settings;
 using PrismMonitor.App.Processes;
+using PrismMonitor.App.Startup;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics;
 
@@ -20,6 +21,7 @@ public sealed partial class MainWindow : Window
     private readonly IgnoredProcessStore _ignoredProcessStore;
     private readonly MonitoringSettingsStore _settingsStore;
     private readonly LaunchHistoryStore _launchHistoryStore;
+    private readonly StartupTaskController _startupTaskController;
     private readonly ProcessIconProvider _iconProvider = new();
     private readonly ProcessTerminator _processTerminator = new();
     private readonly DispatcherTimer _refreshTimer = new();
@@ -31,6 +33,7 @@ public sealed partial class MainWindow : Window
     private bool _refreshHistoryAgain;
     private bool _allowClose;
     private bool _isLoadingSettings;
+    private bool _isUpdatingStartupTask;
 
     public ObservableCollection<ProcessRow> Rows { get; } = [];
     public ObservableCollection<HistoryRow> HistoryRows { get; } = [];
@@ -44,16 +47,18 @@ public sealed partial class MainWindow : Window
 
     public event EventHandler? HiddenToTray;
 
-    public MainWindow(
+    internal MainWindow(
         CompatibilityProcessService processService,
         IgnoredProcessStore ignoredProcessStore,
         MonitoringSettingsStore settingsStore,
-        LaunchHistoryStore launchHistoryStore)
+        LaunchHistoryStore launchHistoryStore,
+        StartupTaskController startupTaskController)
     {
         _processService = processService;
         _ignoredProcessStore = ignoredProcessStore;
         _settingsStore = settingsStore;
         _launchHistoryStore = launchHistoryStore;
+        _startupTaskController = startupTaskController;
         InitializeComponent();
 
         ExtendsContentIntoTitleBar = true;
@@ -304,6 +309,28 @@ public sealed partial class MainWindow : Window
         await SaveSettingsFromControlsAsync();
     }
 
+    private async void RunAtStartupToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_isLoadingSettings || _isUpdatingStartupTask)
+        {
+            return;
+        }
+
+        _isUpdatingStartupTask = true;
+        RunAtStartupToggle.IsEnabled = false;
+        RunAtStartupStatusTextBlock.Text = "Updating the Windows startup setting...";
+
+        try
+        {
+            StartupTaskStatus status = await _startupTaskController.SetEnabledAsync(RunAtStartupToggle.IsOn);
+            ApplyStartupTaskStatus(status);
+        }
+        finally
+        {
+            _isUpdatingStartupTask = false;
+        }
+    }
+
     private async void RemoveRuleButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: AppIdentityRule rule })
@@ -357,6 +384,10 @@ public sealed partial class MainWindow : Window
         else if (string.Equals(selectedTag, "Rules", StringComparison.Ordinal))
         {
             await ReloadRulesAsync();
+        }
+        else if (string.Equals(selectedTag, "Settings", StringComparison.Ordinal))
+        {
+            await LoadSettingsControlsAsync();
         }
     }
 
@@ -464,10 +495,29 @@ public sealed partial class MainWindow : Window
             IncludeArm64EcToggle.IsOn = settings.IncludeArm64EcProcesses;
             NotificationLevelComboBox.SelectedItem = NotificationLevelOptions.FirstOrDefault(
                 option => option.Level == settings.NotificationLevel);
+
+            StartupTaskStatus startupStatus = await _startupTaskController.GetStatusAsync();
+            ApplyStartupTaskStatus(startupStatus);
         }
         finally
         {
             _isLoadingSettings = false;
+        }
+    }
+
+    private void ApplyStartupTaskStatus(StartupTaskStatus status)
+    {
+        bool wasLoadingSettings = _isLoadingSettings;
+        _isLoadingSettings = true;
+        try
+        {
+            RunAtStartupToggle.IsOn = status.IsEnabled;
+            RunAtStartupToggle.IsEnabled = status.CanChange;
+            RunAtStartupStatusTextBlock.Text = status.Description;
+        }
+        finally
+        {
+            _isLoadingSettings = wasLoadingSettings;
         }
     }
 
